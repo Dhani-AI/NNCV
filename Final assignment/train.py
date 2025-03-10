@@ -28,6 +28,7 @@ from torchvision.transforms.v2 import (
     Resize,
     ToImage,
     ToDtype,
+    InterpolationMode,
 )
 
 from model import Model
@@ -94,7 +95,7 @@ def main(args):
     # Define the transforms to apply to the data
     transform = Compose([
         ToImage(),
-        Resize((256, 256)),
+        Resize(size=(256, 256), interpolation=InterpolationMode.BILINEAR),
         ToDtype(torch.float32, scale=True),
         Normalize(mean=(0.28689554, 0.32513303, 0.28389177), std=(0.18696375, 0.19017339, 0.18720214)),
     ])
