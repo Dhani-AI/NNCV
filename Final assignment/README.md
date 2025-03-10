@@ -1,4 +1,6 @@
-# Final Assignment: Cityscape Challenge  
+# Final Assignment: Cityscape Challenge 2024-2025
+
+Dhani Crapels
 
 Welcome to the **Cityscape Challenge**, the final project for this course!  
 
