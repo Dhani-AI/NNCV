@@ -89,13 +89,14 @@ def main(args):
 
     # Define the device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Device: {device}")
 
     # Define the transforms to apply to the data
     transform = Compose([
         ToImage(),
         Resize((256, 256)),
         ToDtype(torch.float32, scale=True),
-        Normalize((0.5,), (0.5,)),
+        Normalize(mean=(0.28689554, 0.32513303, 0.28389177), std=(0.18696375, 0.19017339, 0.18720214)),
     ])
 
     # Load the dataset and make a split for training and validation
