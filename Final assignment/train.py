@@ -92,12 +92,20 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
-    # Define the transforms to apply to the data
-    transform = Compose([
+    # Define the transforms to apply to the images
+    transform_img = Compose([
         ToImage(),
         Resize(size=(256, 256), interpolation=InterpolationMode.BILINEAR),
         ToDtype(torch.float32, scale=True),
-        Normalize(mean=(0.28689554, 0.32513303, 0.28389177), std=(0.18696375, 0.19017339, 0.18720214)),
+        Normalize(mean=(0.28689554, 0.32513303, 0.28389177), 
+                  std=(0.18696375, 0.19017339, 0.18720214)),
+    ])
+
+    # Define the transforms to apply to the masks
+    transform_mask = Compose([
+        ToImage(),
+        Resize(size=(256, 256), interpolation=InterpolationMode.NEAREST),
+        ToDtype(torch.long, scale=False)
     ])
 
     # Load the dataset and make a split for training and validation
@@ -106,19 +114,25 @@ def main(args):
         split="train", 
         mode="fine", 
         target_type="semantic", 
-        transforms=transform
+        transform=transform_img,
+        target_transform=transform_mask
     )
     valid_dataset = Cityscapes(
         args.data_dir, 
         split="val", 
         mode="fine", 
         target_type="semantic", 
-        transforms=transform
+        transform=transform_img,
+        target_transform=transform_mask
     )
 
     train_dataset = wrap_dataset_for_transforms_v2(train_dataset)
     valid_dataset = wrap_dataset_for_transforms_v2(valid_dataset)
 
+    # Print dataset sizes
+    print(f"Training dataset size: {len(train_dataset)}")
+    print(f"Validation dataset size: {len(valid_dataset)}")
+    
     train_dataloader = DataLoader(
         train_dataset, 
         batch_size=args.batch_size, 
