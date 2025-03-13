@@ -70,6 +70,34 @@ def get_args_parser():
     return parser
 
 
+def compute_dice_score(predictions: torch.Tensor, targets: torch.Tensor, ignore_index: int = 255) -> torch.Tensor:
+    """Compute Dice score for semantic segmentation evaluation
+    
+    Args:
+        predictions: Model predictions after softmax [B, C, H, W]
+        targets: Ground truth labels [B, H, W]
+        ignore_index: Index of void class to ignore
+    
+    Returns:
+        Mean Dice score across all classes
+    """
+    predictions = predictions.argmax(dim=1)  # [B, H, W]
+    mask = (targets != ignore_index)
+    
+    dice_scores = []
+    for class_idx in range(19):  # Cityscapes classes
+        pred_class = (predictions == class_idx)
+        target_class = (targets == class_idx)
+        
+        intersection = (pred_class & target_class & mask).float().sum()
+        union = (pred_class & mask).float().sum() + (target_class & mask).float().sum()
+        
+        dice_score = (2.0 * intersection + 1e-6) / (union + 1e-6)
+        dice_scores.append(dice_score)
+    
+    return torch.mean(torch.stack(dice_scores))
+
+
 def main(args):
     # Initialize wandb for logging
     wandb.init(
@@ -93,19 +121,12 @@ def main(args):
     print(f"Device: {device}")
 
     # Define the transforms to apply to the images
-    transform_img = Compose([
+    transform = Compose([
         ToImage(),
         Resize(size=(256, 256), interpolation=InterpolationMode.BILINEAR),
         ToDtype(torch.float32, scale=True),
         Normalize(mean=(0.28689554, 0.32513303, 0.28389177), 
                   std=(0.18696375, 0.19017339, 0.18720214)),
-    ])
-
-    # Define the transforms to apply to the masks
-    transform_mask = Compose([
-        ToImage(),
-        Resize(size=(256, 256), interpolation=InterpolationMode.NEAREST),
-        ToDtype(torch.long, scale=False)
     ])
 
     # Load the dataset and make a split for training and validation
@@ -114,16 +135,14 @@ def main(args):
         split="train", 
         mode="fine", 
         target_type="semantic", 
-        transform=transform_img,
-        target_transform=transform_mask
+        transforms=transform
     )
     valid_dataset = Cityscapes(
         args.data_dir, 
         split="val", 
         mode="fine", 
         target_type="semantic", 
-        transform=transform_img,
-        target_transform=transform_mask
+        transforms=transform
     )
 
     train_dataset = wrap_dataset_for_transforms_v2(train_dataset)
@@ -132,7 +151,7 @@ def main(args):
     # Print dataset sizes
     print(f"Training dataset size: {len(train_dataset)}")
     print(f"Validation dataset size: {len(valid_dataset)}")
-    
+
     train_dataloader = DataLoader(
         train_dataset, 
         batch_size=args.batch_size, 
@@ -189,6 +208,7 @@ def main(args):
         model.eval()
         with torch.no_grad():
             losses = []
+            dice_scores = []
             for i, (images, labels) in enumerate(valid_dataloader):
 
                 labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
@@ -199,7 +219,11 @@ def main(args):
                 outputs = model(images)
                 loss = criterion(outputs, labels)
                 losses.append(loss.item())
-            
+
+                # Calculate Dice score
+                dice_score = compute_dice_score(outputs.softmax(dim=1), labels)
+                dice_scores.append(dice_score.item())
+
                 if i == 0:
                     predictions = outputs.softmax(1).argmax(1)
 
@@ -221,8 +245,11 @@ def main(args):
                     }, step=(epoch + 1) * len(train_dataloader) - 1)
             
             valid_loss = sum(losses) / len(losses)
+            mean_dice = sum(dice_scores) / len(dice_scores)
+
             wandb.log({
-                "valid_loss": valid_loss
+                "valid_loss": valid_loss,
+                "valid_dice_score": mean_dice,
             }, step=(epoch + 1) * len(train_dataloader) - 1)
 
             if valid_loss < best_valid_loss:
