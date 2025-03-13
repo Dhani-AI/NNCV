@@ -121,19 +121,12 @@ def main(args):
     print(f"Device: {device}")
 
     # Define the transforms to apply to the images
-    transform_img = Compose([
+    transform = Compose([
         ToImage(),
         Resize(size=(256, 256), interpolation=InterpolationMode.BILINEAR),
         ToDtype(torch.float32, scale=True),
         Normalize(mean=(0.28689554, 0.32513303, 0.28389177), 
                   std=(0.18696375, 0.19017339, 0.18720214)),
-    ])
-
-    # Define the transforms to apply to the masks
-    transform_mask = Compose([
-        ToImage(),
-        Resize(size=(256, 256), interpolation=InterpolationMode.NEAREST),
-        ToDtype(torch.long, scale=False)
     ])
 
     # Load the dataset and make a split for training and validation
@@ -142,16 +135,14 @@ def main(args):
         split="train", 
         mode="fine", 
         target_type="semantic", 
-        transform=transform_img,
-        target_transform=transform_mask
+        transforms=transform
     )
     valid_dataset = Cityscapes(
         args.data_dir, 
         split="val", 
         mode="fine", 
         target_type="semantic", 
-        transform=transform_img,
-        target_transform=transform_mask
+        transforms=transform
     )
 
     train_dataset = wrap_dataset_for_transforms_v2(train_dataset)
