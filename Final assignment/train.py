@@ -129,7 +129,7 @@ def main(args):
     transform = Compose([
         ToImage(),
         Resize(size=(640, 640), interpolation=InterpolationMode.BILINEAR),
-        Pad(padding=[4, 4, 4, 4], padding_mode='constant', fill=0),
+        Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
         ToDtype(torch.float32, scale=True),
         Normalize(mean=MEAN, std=STD),
     ])
