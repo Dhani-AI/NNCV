@@ -32,6 +32,7 @@ from torchvision.transforms.v2 import (
 )
 
 from model import Model
+from dino_model import DinoSegmentationModel
 
 
 # Mapping class IDs to train IDs
@@ -66,6 +67,7 @@ def get_args_parser():
     parser.add_argument("--num-workers", type=int, default=10, help="Number of workers for data loaders")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     parser.add_argument("--experiment-id", type=str, default="unet-training", help="Experiment ID for Weights & Biases")
+    parser.add_argument("--model", type=str, default="unet", help="Model architecture to use")
 
     return parser
 
@@ -166,11 +168,16 @@ def main(args):
     )
 
     # Define the model
-    model = Model(
-        in_channels=3,  # RGB images
-        n_classes=19,  # 19 classes in the Cityscapes dataset
-    ).to(device)
-
+    if args.model == "unet":
+        model = Model(
+            in_channels=3,  # RGB images
+            n_classes=19,  # 19 classes in the Cityscapes dataset
+        ).to(device)
+    elif args.model == "dino":
+        model = DinoSegmentationModel(n_classes=19).to(device)
+    else:
+        raise ValueError(f"Invalid model type: {args.model}")
+    
     # Define the loss function
     criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
