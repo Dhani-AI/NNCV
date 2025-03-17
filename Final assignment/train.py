@@ -32,7 +32,7 @@ from torchvision.transforms.v2 import (
 )
 
 from model import Model
-from dino_model import DinoSegmentationModel
+from dino_model import create_dino_segmentation_model
 
 
 # Mapping class IDs to train IDs
@@ -174,7 +174,10 @@ def main(args):
             n_classes=19,  # 19 classes in the Cityscapes dataset
         ).to(device)
     elif args.model == "dino":
-        model = DinoSegmentationModel(n_classes=19).to(device)
+        model = create_dino_segmentation_model(
+            n_classes=19, 
+            backbone_size='small'
+        ).to(device)
     else:
         raise ValueError(f"Invalid model type: {args.model}")
     
