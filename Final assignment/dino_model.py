@@ -52,10 +52,10 @@ class DinoSegmentationModel(nn.Module):
         features = features[:, 1:, :]  # Remove CLS token
         
         # Reshape patches back to image-like format
-        P = int((H // 14) * (W // 14))  # Number of patches
+        P = int((H // 16) * (W // 16))  # Number of patches
         D = features.shape[-1]  # Embedding dimension
-        features = features.reshape(B, H//14, W//14, D)
-        features = features.permute(0, 3, 1, 2)  # [B, D, H//14, W//14]
+        features = features.reshape(B, H//16, W//16, D)
+        features = features.permute(0, 3, 1, 2)  # [B, D, H//16, W//16]
         
         # Upsample to original resolution
         features = F.interpolate(
