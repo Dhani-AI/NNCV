@@ -31,7 +31,7 @@ from torchvision.transforms.v2 import (
     InterpolationMode,
     Pad
 )
-from torchinfo import summary
+
 from model import Model
 from dino_model import DINOv2Segmentation
 
@@ -180,12 +180,6 @@ def main(args):
         model = DINOv2Segmentation()
         model.decode_head.conv_seg = nn.Conv2d(1536, 19, kernel_size=(1, 1), stride=(1, 1))
         _ = model.to(device)
-        summary(
-        model, 
-        (1, 3, 644, 644),
-        col_names=('input_size', 'output_size', 'num_params'),
-        row_settings=['var_names']
-        )
     else:
         raise ValueError(f"Invalid model type: {args.model}")
     
