@@ -75,34 +75,6 @@ def get_args_parser():
     return parser
 
 
-def compute_dice_score(predictions: torch.Tensor, targets: torch.Tensor, ignore_index: int = 255) -> torch.Tensor:
-    """Compute Dice score for semantic segmentation evaluation
-    
-    Args:
-        predictions: Model predictions after softmax [B, C, H, W]
-        targets: Ground truth labels [B, H, W]
-        ignore_index: Index of void class to ignore
-    
-    Returns:
-        Mean Dice score across all classes
-    """
-    predictions = predictions.argmax(dim=1)  # [B, H, W]
-    mask = (targets != ignore_index)
-    
-    dice_scores = []
-    for class_idx in range(19):  # Cityscapes classes
-        pred_class = (predictions == class_idx)
-        target_class = (targets == class_idx)
-        
-        intersection = (pred_class & target_class & mask).float().sum()
-        union = (pred_class & mask).float().sum() + (target_class & mask).float().sum()
-        
-        dice_score = (2.0 * intersection + 1e-6) / (union + 1e-6)
-        dice_scores.append(dice_score)
-    
-    return torch.mean(torch.stack(dice_scores))
-
-
 def main(args):
     # Initialize wandb for logging
     wandb.init(
@@ -230,7 +202,6 @@ def main(args):
         model.eval()
         with torch.no_grad():
             losses = []
-            dice_scores = []
             for i, (images, labels) in enumerate(valid_dataloader):
 
                 labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
@@ -249,9 +220,6 @@ def main(args):
                 loss = criterion(upsampled_logits, labels)
                 losses.append(loss.item())
 
-                # Calculate Dice score
-                dice_score = compute_dice_score(outputs.softmax(dim=1), labels)
-                dice_scores.append(dice_score.item())
 
                 if i == 0:
                     predictions = upsampled_logits.softmax(1).argmax(1)
@@ -274,11 +242,9 @@ def main(args):
                     }, step=(epoch + 1) * len(train_dataloader) - 1)
             
             valid_loss = sum(losses) / len(losses)
-            mean_dice = sum(dice_scores) / len(dice_scores)
 
             wandb.log({
                 "valid_loss": valid_loss,
-                "valid_dice_score": mean_dice,
             }, step=(epoch + 1) * len(train_dataloader) - 1)
 
             if valid_loss < best_valid_loss:
