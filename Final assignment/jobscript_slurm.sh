@@ -7,5 +7,3 @@
 #SBATCH --time=00:30:00
 
 srun apptainer exec --nv --env-file .env container.sif /bin/bash main.sh
-
-pip install torchinfo
