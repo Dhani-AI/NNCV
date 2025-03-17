@@ -148,11 +148,13 @@ def main(args):
 
     # Define the model
     if args.model == "unet":
+        print("Initializing U-Net model")
         model = Model(
             in_channels=3,  # RGB images
             n_classes=19,  # 19 classes in the Cityscapes dataset
         ).to(device)
     elif args.model == "dinov2":
+        print("Initializing DINOv2 model")
         model = DINOv2Segmentation()
         model.decode_head.conv_seg = nn.Conv2d(1536, 19, kernel_size=(1, 1), stride=(1, 1))
         _ = model.to(device)
@@ -178,6 +180,7 @@ def main(args):
 
         # Training
         model.train()
+        train_running_loss = 0.0
         for i, (images, labels) in enumerate(train_dataloader):
 
             labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
@@ -196,16 +199,21 @@ def main(args):
 
             ##### BATCH-WISE LOSS #####
             loss = criterion(upsampled_logits, labels)
-
+            train_running_loss += loss.item()
             ##### BACKPROPAGATION AND PARAMETER UPDATION #####
             loss.backward()
             optimizer.step()
+            ##################################################
+        
+        ##### PER EPOCH LOSS #####
+        train_loss = train_running_loss / len(train_dataloader)
+        ##########################
 
-            wandb.log({
-                "train_loss": loss.item(),
-                "learning_rate": optimizer.param_groups[0]['lr'],
-                "epoch": epoch + 1,
-            }, step=epoch * len(train_dataloader) + i)
+        wandb.log({
+            "train_loss": train_loss,
+            "learning_rate": optimizer.param_groups[0]['lr'],
+            "epoch": epoch + 1,
+        }, step=epoch) # Log at the end of the epoch
             
         # Validation
         model.eval()
@@ -239,8 +247,8 @@ def main(args):
                     predictions = convert_train_id_to_color(predictions)
                     labels = convert_train_id_to_color(labels)
 
-                    predictions_img = make_grid(predictions.cpu(), nrow=8)
-                    labels_img = make_grid(labels.cpu(), nrow=8)
+                    predictions_img = make_grid(predictions.cpu(), nrow=4)
+                    labels_img = make_grid(labels.cpu(), nrow=4)
 
                     predictions_img = predictions_img.permute(1, 2, 0).numpy()
                     labels_img = labels_img.permute(1, 2, 0).numpy()
@@ -254,7 +262,7 @@ def main(args):
 
             wandb.log({
                 "valid_loss": valid_loss,
-            }, step=(epoch + 1) * len(train_dataloader) - 1)
+            }, step=(epoch + 1) * len(train_dataloader) - 1) # Log at the end of the epoch
 
             if valid_loss < best_valid_loss:
                 best_valid_loss = valid_loss
@@ -268,9 +276,7 @@ def main(args):
 
         if args.scheduler:
             scheduler.step()
-            wandb.log({
-                "learning_rate": optimizer.param_groups[0]['lr'],
-            }, step=(epoch + 1) * len(train_dataloader))
+        last_lr = scheduler.get_last_lr()
 
     print("Training complete!")
 
