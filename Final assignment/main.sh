@@ -7,5 +7,5 @@ python3 train.py \
     --lr 0.0001 \
     --num-workers 10 \
     --seed 42 \
-    --experiment-id "dino-training" \
-    --model "dino" \
+    --experiment-id "dinov2-training" \
+    --model "dinov2" \
