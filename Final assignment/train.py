@@ -29,11 +29,14 @@ from torchvision.transforms.v2 import (
     ToImage,
     ToDtype,
     InterpolationMode,
+    Pad
 )
 
 from model import Model
-from dino_model import create_dino_segmentation_model
+from dino_model import DINOv2Segmentation
 
+MEAN = [0.28689554, 0.32513303, 0.28389177]
+STD = [0.18696375, 0.19017339, 0.18720214]
 
 # Mapping class IDs to train IDs
 id_to_trainid = {cls.id: cls.train_id for cls in Cityscapes.classes}
@@ -125,10 +128,10 @@ def main(args):
     # Define the transforms to apply to the images
     transform = Compose([
         ToImage(),
-        Resize(size=(256, 512), interpolation=InterpolationMode.BILINEAR),
+        Resize(size=(640, 640), interpolation=InterpolationMode.BILINEAR),
+        Pad(padding=[4, 4, 4, 4], padding_mode='constant', fill=0),
         ToDtype(torch.float32, scale=True),
-        Normalize(mean=(0.28689554, 0.32513303, 0.28389177), 
-                  std=(0.18696375, 0.19017339, 0.18720214)),
+        Normalize(mean=MEAN, std=STD),
     ])
 
     # Load the dataset and make a split for training and validation
@@ -173,11 +176,10 @@ def main(args):
             in_channels=3,  # RGB images
             n_classes=19,  # 19 classes in the Cityscapes dataset
         ).to(device)
-    elif args.model == "dino":
-        model = create_dino_segmentation_model(
-            n_classes=19, 
-            backbone_size='small'
-        ).to(device)
+    elif args.model == "dinov2":
+        model = DINOv2Segmentation()
+        model.decode_head.conv_seg = nn.Conv2d(1536, 19, kernel_size=(1, 1), stride=(1, 1))
+        _ = model.to(device)
     else:
         raise ValueError(f"Invalid model type: {args.model}")
     
@@ -185,7 +187,7 @@ def main(args):
     criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
     # Define the optimizer
-    optimizer = AdamW(model.parameters(), lr=args.lr)
+    optimizer = AdamW(model.parameters(), weight_decay=0.0001, lr=args.lr)
 
     # Training loop
     best_valid_loss = float('inf')
@@ -204,7 +206,17 @@ def main(args):
 
             optimizer.zero_grad()
             outputs = model(images)
-            loss = criterion(outputs, labels)
+
+            upsampled_logits = nn.functional.interpolate(
+                outputs, size=labels.shape[-2:], 
+                mode="bilinear", 
+                align_corners=False
+            )
+
+            ##### BATCH-WISE LOSS #####
+            loss = criterion(upsampled_logits, labels)
+
+            ##### BACKPROPAGATION AND PARAMETER UPDATION #####
             loss.backward()
             optimizer.step()
 
@@ -227,7 +239,14 @@ def main(args):
                 labels = labels.long().squeeze(1)  # Remove channel dimension
 
                 outputs = model(images) # [B, C, H, W]
-                loss = criterion(outputs, labels)
+
+                upsampled_logits = nn.functional.interpolate(
+                outputs, size=labels.shape[-2:], 
+                mode="bilinear", 
+                align_corners=False
+                )
+
+                loss = criterion(upsampled_logits, labels)
                 losses.append(loss.item())
 
                 # Calculate Dice score
@@ -235,7 +254,7 @@ def main(args):
                 dice_scores.append(dice_score.item())
 
                 if i == 0:
-                    predictions = outputs.softmax(1).argmax(1)
+                    predictions = upsampled_logits.softmax(1).argmax(1)
 
                     predictions = predictions.unsqueeze(1)
                     labels = labels.unsqueeze(1)
