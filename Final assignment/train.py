@@ -123,7 +123,7 @@ def main(args):
     # Define the transforms to apply to the images
     transform = Compose([
         ToImage(),
-        Resize(size=(256, 256), interpolation=InterpolationMode.LANCZOS),
+        Resize(size=(256, 512), interpolation=InterpolationMode.LANCZOS),
         ToDtype(torch.float32, scale=True),
         Normalize(mean=(0.28689554, 0.32513303, 0.28389177), 
                   std=(0.18696375, 0.19017339, 0.18720214)),
