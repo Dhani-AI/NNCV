@@ -6,7 +6,6 @@ import torch.nn as nn
 
 from functools import partial
 from collections import OrderedDict
-from torchinfo import summary
 
 # Ddefining the model architecture and downloading the pretrained DINOv2 backbone.
 BACKBONE_SIZE = "small" # in ("small", "base", "large" or "giant")
@@ -174,6 +173,7 @@ class DINOv2Segmentation(nn.Module):
         return outputs
     
 if __name__ == '__main__':
+    from torchinfo import summary
     model = DINOv2Segmentation()
     summary(
         model, 
