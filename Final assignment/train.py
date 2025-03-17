@@ -32,6 +32,7 @@ from torchvision.transforms.v2 import (
     Pad
 )
 
+from torch.optim.lr_scheduler import MultiStepLR
 from model import Model
 from dino_model import DINOv2Segmentation
 
@@ -71,6 +72,8 @@ def get_args_parser():
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     parser.add_argument("--experiment-id", type=str, default="unet-training", help="Experiment ID for Weights & Biases")
     parser.add_argument("--model", type=str, default="unet", help="Model architecture to use")
+    parser.add_argument("--scheduler", action="store_true", help="Use learning rate scheduler")
+    parser.add_argument("--scheduler-epochs", dest="scheduler_epochs", default=[30], nargs="+", type=int, help="Epochs to decay learning rate")
 
     return parser
 
@@ -141,6 +144,7 @@ def main(args):
         shuffle=False,
         num_workers=args.num_workers
     )
+    
 
     # Define the model
     if args.model == "unet":
@@ -160,6 +164,11 @@ def main(args):
 
     # Define the optimizer
     optimizer = AdamW(model.parameters(), weight_decay=0.0001, lr=args.lr)
+
+    # LR Scheduler.
+    scheduler = MultiStepLR(
+        optimizer, milestones=args.scheduler_epochs, gamma=0.1
+    )
 
     # Training loop
     best_valid_loss = float('inf')
@@ -256,7 +265,13 @@ def main(args):
                     f"best_model-epoch={epoch:04}-val_loss={valid_loss:04}.pth"
                 )
                 torch.save(model.state_dict(), current_best_model_path)
-        
+
+        if args.scheduler:
+            scheduler.step()
+            wandb.log({
+                "learning_rate": optimizer.param_groups[0]['lr'],
+            }, step=(epoch + 1) * len(train_dataloader))
+
     print("Training complete!")
 
     # Save the model
