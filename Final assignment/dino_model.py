@@ -1,82 +1,183 @@
 import torch
+import urllib
+import warnings
+import torch.nn.functional as F
 import torch.nn as nn
-from torch.nn import functional as F
 
-class DinoSegmentationModel(nn.Module):
-    def __init__(self, n_classes=19, backbone_size='small'):
-        super(DinoSegmentationModel, self).__init__()
-        
-        # Load pre-trained DINOv2 backbone
-        backbone_archs = {
-            "small": "vits14",
-            "base": "vitb14",
-            "large": "vitl14",
-            "giant": "vitg14",
-        }
+from functools import partial
+from collections import OrderedDict
+from torchinfo import summary
 
-        backbone_arch = backbone_archs[backbone_size]
-        backbone_name = f"dinov2_{backbone_arch}"
+# Ddefining the model architecture and downloading the pretrained DINOv2 backbone.
+BACKBONE_SIZE = "small" # in ("small", "base", "large" or "giant")
+backbone_archs = {
+    "small": "vits14", # 14x14 resolution patches
+    "base": "vitb14",
+    "large": "vitl14",
+    "giant": "vitg14",
+}
+
+backbone_arch = backbone_archs[BACKBONE_SIZE]
+backbone_name = f"dinov2_{backbone_arch}"
+    
+HEAD_SCALE_COUNT = 3 # more scales: slower but better results, in (1,2,3,4,5)
+HEAD_DATASET = "voc2012" # in ("ade20k", "voc2012")
+HEAD_TYPE = "ms" # in ("ms, "linear")
+
+DINOV2_BASE_URL = "https://dl.fbaipublicfiles.com/dinov2"
+head_config_url = f"{DINOV2_BASE_URL}/{backbone_name}/{backbone_name}_{HEAD_DATASET}_{HEAD_TYPE}_config.py"
+head_checkpoint_url = f"{DINOV2_BASE_URL}/{backbone_name}/{backbone_name}_{HEAD_DATASET}_{HEAD_TYPE}_head.pth"
+
+backbone_model = torch.hub.load(repo_or_dir="facebookresearch/dinov2", model=backbone_name)
+backbone_model.cuda()
+
+# TODO: This part needs cleaning #
+def load_config_from_url(url: str) -> str:
+    with urllib.request.urlopen(url) as f:
+        return f.read().decode()
+    
+cfg_str = load_config_from_url(head_config_url)
+with open('temp.py', 'w') as f:
+    f.write(cfg_str)
+
+from temp import model as model_dict
+##################################
+
+backbone_model.forward = partial(
+    backbone_model.get_intermediate_layers,
+    n=model_dict['backbone']['out_indices'],
+    reshape=True,
+)
+for name, param in backbone_model.named_parameters():
+    param.requires_grad = False
+
+def resize(input_data,
+       size=None,
+       scale_factor=None,
+       mode='nearest',
+       align_corners=None,
+       warning=True):
+    if warning:
+        if size is not None and align_corners:
+            input_h, input_w = tuple(int(x) for x in input.shape[2:])
+            output_h, output_w = tuple(int(x) for x in size)
+            if output_h > input_h or output_w > input_w:
+                if ((output_h > 1 and output_w > 1 and input_h > 1
+                     and input_w > 1) and (output_h - 1) % (input_h - 1)
+                        and (output_w - 1) % (input_w - 1)):
+                    warnings.warn(
+                        f'When align_corners={align_corners}, '
+                        'the output would more aligned if '
+                        f'input size {(input_h, input_w)} is `x+1` and '
+                        f'out size {(output_h, output_w)} is `nx+1`')
+    return F.interpolate(input_data, size, scale_factor, mode, align_corners)
+
+
+class BNHead(nn.Module):
+    """Just a batchnorm."""
+
+    def __init__(self, resize_factors=None, **kwargs):
+        super().__init__(**kwargs)
+        # HARDCODED IN_CHANNELS FOR NOW.
+        self.in_channels = 1536
+        self.bn = nn.SyncBatchNorm(self.in_channels)
+        self.resize_factors = resize_factors
+        self.in_index = [0, 1, 2, 3]
+        self.input_transform = 'resize_concat'
+        self.align_corners = False
         
-        # Load DINOv2 backbone
-        self.backbone = torch.hub.load(repo_or_dir="facebookresearch/dinov2", model=backbone_name)
+        self.conv_seg = nn.Conv2d(self.in_channels, 21, kernel_size=1)
+
+    def _forward_feature(self, inputs):
+        """Forward function for feature maps before classifying each pixel with
+        ``self.cls_seg`` fc.
+        Args:
+            inputs (list[Tensor]): List of multi-level img features.
+        Returns:
+            feats (Tensor): A tensor of shape (batch_size, self.channels,
+                H, W) which is feature map for last layer of decoder head.
+        """
+        x = self._transform_inputs(inputs)
+        feats = self.bn(x)
+        return feats
+    
+    def _transform_inputs(self, inputs):
+        """Transform inputs for decoder.
+        Args:
+            inputs (list[Tensor]): List of multi-level img features.
+        Returns:
+            Tensor: The transformed inputs
+        """
+
+        if self.input_transform == "resize_concat":
+            # accept lists (for cls token)
+            input_list = []
+            for x in inputs:
+                if isinstance(x, list):
+                    input_list.extend(x)
+                else:
+                    input_list.append(x)
+            inputs = input_list
+            # an image descriptor can be a local descriptor with resolution 1x1
+            for i, x in enumerate(inputs):
+                if len(x.shape) == 2:
+                    inputs[i] = x[:, :, None, None]
+            # select indices
+            inputs = [inputs[i] for i in self.in_index]
+            # Resizing shenanigans
+            # print("before", *(x.shape for x in inputs))
+            if self.resize_factors is not None:
+                assert len(self.resize_factors) == len(inputs), (len(self.resize_factors), len(inputs))
+                inputs = [
+                    resize(input=x, scale_factor=f, mode="bilinear" if f >= 1 else "area")
+                    for x, f in zip(inputs, self.resize_factors)
+                ]
+                # print("after", *(x.shape for x in inputs))
+            upsampled_inputs = [
+                resize(input_data=x, size=inputs[0].shape[2:], mode="bilinear", align_corners=self.align_corners)
+                for x in inputs
+            ]
+            inputs = torch.cat(upsampled_inputs, dim=1)
+        elif self.input_transform == "multiple_select":
+            inputs = [inputs[i] for i in self.in_index]
+        else:
+            inputs = inputs[self.in_index]
+
+        return inputs
+    
+    def cls_seg(self, feat):
+        """Classify each pixel."""
+        output = self.conv_seg(feat)
+        return output
         
-        # Freeze backbone weights
-        for param in self.backbone.parameters():
-            param.requires_grad = False
-            
-        # Get embedding dimension based on model type
-        embed_dims = {
-            'small': 384,
-            'base': 768,
-            'large': 1024,
-            'giant': 1536
-        }
-        embed_dim = embed_dims[backbone_size]
-        
-        # Segmentation head
-        self.seg_head = nn.Sequential(
-            nn.Conv2d(embed_dim, 256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(256, n_classes, kernel_size=1)
-        )
+    def forward(self, inputs):
+        """Forward function."""
+        output = self._forward_feature(inputs)
+        output = self.cls_seg(output)
+        return output
+    
+
+class DINOv2Segmentation(nn.Module):
+    def __init__(self):
+        super(DINOv2Segmentation, self).__init__()
+
+        self.backbone_model = backbone_model
+        self.decode_head = BNHead()
+
+        self.model = nn.Sequential(OrderedDict([
+            ('backbone', self.backbone_model),
+            ('decode_head', self.decode_head)
+        ]))
         
     def forward(self, x):
-        # Get input dimensions
-        B, C, H, W = x.shape
-        
-        # Get DINO features
-        features = self.backbone.forward_features(x)  # [B, N, D]
-        
-        # Remove CLS token and reshape to 2D
-        features = features[:, 1:, :]  # Remove CLS token
-        
-        # Reshape patches back to image-like format
-        P = int((H // 16) * (W // 16))  # Number of patches
-        D = features.shape[-1]  # Embedding dimension
-        features = features.reshape(B, H//16, W//16, D)
-        features = features.permute(0, 3, 1, 2)  # [B, D, H//16, W//16]
-        
-        # Upsample to original resolution
-        features = F.interpolate(
-            features, 
-            size=(H, W), 
-            mode='bilinear', 
-            align_corners=False
-        )
-        
-        # Apply segmentation head
-        logits = self.seg_head(features)
-        
-        return logits
-
-def create_dino_segmentation_model(n_classes=19, backbone_size='small'):
-    """
-    Create a DINOv2-based segmentation model
+        outputs = self.model(x)
+        return outputs
     
-    Args:
-        n_classes (int): Number of output classes
-        model_type (str): Size of DINOv2 model ('small', 'base', 'large', 'giant')
-    """
-    model = DinoSegmentationModel(n_classes=n_classes, backbone_size=backbone_size)
-    return model
+if __name__ == '__main__':
+    model = DINOv2Segmentation()
+    summary(
+        model, 
+        (1, 3, 644, 644),
+        col_names=('input_size', 'output_size', 'num_params'),
+        row_settings=['var_names']
+    )
