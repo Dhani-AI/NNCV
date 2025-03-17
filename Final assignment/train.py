@@ -103,7 +103,7 @@ def main(args):
     # Define the transforms to apply to the images
     transform = Compose([
         ToImage(),
-        Resize(size=(640, 640), interpolation=InterpolationMode.BILINEAR),
+        Resize(size=(640, 640)),
         Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
         ToDtype(torch.float32, scale=True),
         Normalize(mean=MEAN, std=STD),
@@ -145,8 +145,7 @@ def main(args):
         num_workers=args.num_workers
     )
     
-
-    # Define the model
+    ################# DEFINE THE MODEL ARCHITECTURE ##################
     if args.model == "unet":
         print("Initializing U-Net model")
         model = Model(
@@ -171,6 +170,7 @@ def main(args):
     scheduler = MultiStepLR(
         optimizer, milestones=args.scheduler_epochs, gamma=0.1
     )
+    ##################################################################
 
     # Training loop
     best_valid_loss = float('inf')
@@ -180,7 +180,6 @@ def main(args):
 
         # Training
         model.train()
-        train_running_loss = 0.0
         for i, (images, labels) in enumerate(train_dataloader):
 
             labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
@@ -191,6 +190,7 @@ def main(args):
             optimizer.zero_grad()
             outputs = model(images)
 
+            # Model originally outputs 46x46 logits
             upsampled_logits = nn.functional.interpolate(
                 outputs, size=labels.shape[-2:], 
                 mode="bilinear", 
@@ -199,21 +199,18 @@ def main(args):
 
             ##### BATCH-WISE LOSS #####
             loss = criterion(upsampled_logits, labels)
-            train_running_loss += loss.item()
+            #############################
+
             ##### BACKPROPAGATION AND PARAMETER UPDATION #####
             loss.backward()
             optimizer.step()
             ##################################################
-        
-        ##### PER EPOCH LOSS #####
-        train_loss = train_running_loss / len(train_dataloader)
-        ##########################
 
-        wandb.log({
-            "train_loss": train_loss,
-            "learning_rate": optimizer.param_groups[0]['lr'],
-            "epoch": epoch + 1,
-        }, step=epoch) # Log at the end of the epoch
+            wandb.log({
+                "train_loss": loss.item(),
+                "learning_rate": optimizer.param_groups[0]['lr'],
+                "epoch": epoch + 1,
+            }, step=epoch * len(train_dataloader) + i)
             
         # Validation
         model.eval()
@@ -277,8 +274,9 @@ def main(args):
         if args.scheduler:
             scheduler.step()
         last_lr = scheduler.get_last_lr()
+        print(f"LR for next epoch: {last_lr}")
 
-    print("Training complete!")
+    print("TRAINING COMPLETE!")
 
     # Save the model
     torch.save(
