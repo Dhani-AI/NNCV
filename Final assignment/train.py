@@ -39,6 +39,9 @@ from dino_model import DINOv2Segmentation
 MEAN = [0.28689554, 0.32513303, 0.28389177]
 STD = [0.18696375, 0.19017339, 0.18720214]
 
+CITYSCAPES_CLASSES = [cls.name for cls in Cityscapes.classes if cls.train_id != 255]
+print(CITYSCAPES_CLASSES)
+
 # Mapping class IDs to train IDs
 id_to_trainid = {cls.id: cls.train_id for cls in Cityscapes.classes}
 def convert_to_train_id(label_img: torch.Tensor) -> torch.Tensor:
@@ -76,6 +79,32 @@ def get_args_parser():
     parser.add_argument("--scheduler-epochs", dest="scheduler_epochs", default=[30], nargs="+", type=int, help="Epochs to decay learning rate")
 
     return parser
+    
+
+def calculate_dice_score(pred: torch.Tensor, target: torch.Tensor, num_classes: int = 19, smooth: float = 1e-6) -> Dict[int, float]:
+    """
+    Calculate Dice score for each class
+    Args:
+        pred: Predictions tensor after softmax (B, C, H, W)
+        target: Ground truth tensor (B, H, W)
+        num_classes: Number of classes
+        smooth: Smoothing factor to avoid division by zero
+    Returns:
+        Dictionary of class-wise Dice scores
+    """
+    dice_scores = {}
+    
+    for cls in range(num_classes):
+        pred_cls = pred[:, cls]  # (B, H, W)
+        target_cls = (target == cls).float()  # (B, H, W)
+        
+        intersection = (pred_cls * target_cls).sum()
+        union = pred_cls.sum() + target_cls.sum()
+        
+        dice = (2.0 * intersection + smooth) / (union + smooth)
+        dice_scores[cls] = dice.item()
+    
+    return dice_scores
 
 
 def main(args):
@@ -216,6 +245,8 @@ def main(args):
         model.eval()
         with torch.no_grad():
             losses = []
+            epoch_dice_scores = []
+
             for i, (images, labels) in enumerate(valid_dataloader):
 
                 labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
@@ -223,7 +254,7 @@ def main(args):
 
                 labels = labels.long().squeeze(1)  # Remove channel dimension
 
-                outputs = model(images) # [B, C, H, W]
+                outputs = model(images)
 
                 upsampled_logits = nn.functional.interpolate(
                 outputs, size=labels.shape[-2:], 
@@ -231,9 +262,14 @@ def main(args):
                 align_corners=False
                 )
 
+                # Calculate loss
                 loss = criterion(upsampled_logits, labels)
                 losses.append(loss.item())
 
+                # Calculate Dice Score
+                dice_preds = upsampled_logits.softmax(1) 
+                batch_dice_scores = calculate_dice_score(dice_preds, labels)
+                epoch_dice_scores.append(batch_dice_scores)
 
                 if i == 0:
                     predictions = upsampled_logits.softmax(1).argmax(1)
@@ -244,8 +280,8 @@ def main(args):
                     predictions = convert_train_id_to_color(predictions)
                     labels = convert_train_id_to_color(labels)
 
-                    predictions_img = make_grid(predictions.cpu(), nrow=4)
-                    labels_img = make_grid(labels.cpu(), nrow=4)
+                    predictions_img = make_grid(predictions.cpu(), nrow=5)
+                    labels_img = make_grid(labels.cpu(), nrow=5)
 
                     predictions_img = predictions_img.permute(1, 2, 0).numpy()
                     labels_img = labels_img.permute(1, 2, 0).numpy()
@@ -257,8 +293,17 @@ def main(args):
             
             valid_loss = sum(losses) / len(losses)
 
+            # Calculate mean Dice score for the epoch
+            class_dice_scores = {}
+            for cls in range(19):
+                class_dice_scores[cls] = np.mean([dice[cls] for dice in epoch_dice_scores])
+            
+            mean_dice = np.mean(list(class_dice_scores.values()))
+
             wandb.log({
                 "valid_loss": valid_loss,
+                "mean_dice_score": mean_dice,
+                **{f"dice_{CITYSCAPES_CLASSES[cls]}": score for cls, score in class_dice_scores.items()},
             }, step=(epoch + 1) * len(train_dataloader) - 1) # Log at the end of the epoch
 
             if valid_loss < best_valid_loss:
