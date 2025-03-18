@@ -24,6 +24,7 @@ from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from torchvision.datasets import Cityscapes, wrap_dataset_for_transforms_v2
 from torchvision.utils import make_grid
+
 from torchvision.transforms.v2 import (
     Compose,
     Normalize,
