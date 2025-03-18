@@ -1,3 +1,13 @@
+"""
+This script defines the DINOv2 model architecture and downloads the pretrained DINOv2 backbone. 
+A custom segmentation head is added to the backbone to perform semantic segmentation on the 
+Cityscapes dataset.
+
+Based on the DINOv2 architecture from the original paper:
+Maxime Oqua et al. (2021), "DINOv2: Learning Robust Visual Features without Supervision", 
+https://arxiv.org/abs/2304.07193
+"""
+
 import torch
 import urllib
 import warnings
