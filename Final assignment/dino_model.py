@@ -13,7 +13,6 @@ import torch.nn as nn
 
 from functools import partial
 from collections import OrderedDict
-from torchinfo import summary
 from model_config import model as model_dict
 
 def load_backbone():
