@@ -36,7 +36,7 @@ from torchvision.transforms.v2 import (
     ColorJitter
 )
 
-from torch.optim.lr_scheduler import MultiStepLR
+from torch.optim.lr_scheduler import OneCycleLR, CosineAnnealingLR, MultiStepLR
 from model import Model
 from dino_model import DINOv2Segmentation
 
@@ -212,9 +212,20 @@ def main(args):
     optimizer = AdamW(model.parameters(), weight_decay=0.0001, lr=args.lr)
 
     # LR Scheduler.
-    scheduler = MultiStepLR(
-        optimizer, milestones=args.scheduler_epochs, gamma=0.1
+    scheduler = OneCycleLR(
+        optimizer,
+        max_lr=args.lr,  # Peak learning rate
+        epochs=args.epochs,
+        steps_per_epoch=len(train_dataloader),
+        pct_start=0.3,  # Spend 30% of time warming up
+        div_factor=25,  # Initial LR = max_lr/25
+        final_div_factor=1000,  # Final LR = max_lr/1000
     )
+
+    # scheduler = MultiStepLR(
+    #     optimizer, milestones=args.scheduler_epochs, gamma=0.1
+    # )
+
     ##################################################################
 
     # Training loop
@@ -250,6 +261,8 @@ def main(args):
             loss.backward()
             optimizer.step()
             ##################################################
+
+            scheduler.step()
 
             wandb.log({
                 "train_loss": loss.item(),
@@ -331,11 +344,6 @@ def main(args):
                     f"best_model-epoch={epoch:04}-val_loss={valid_loss:04}.pth"
                 )
                 torch.save(model.state_dict(), current_best_model_path)
-
-        if args.scheduler:
-            scheduler.step()
-        last_lr = scheduler.get_last_lr()
-        print(f"LR for next epoch: {last_lr}")
 
     print("TRAINING COMPLETE!")
 
