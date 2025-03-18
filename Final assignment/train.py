@@ -30,8 +30,10 @@ from torchvision.transforms.v2 import (
     Resize,
     ToImage,
     ToDtype,
-    InterpolationMode,
-    Pad
+    Pad,
+    RandomHorizontalFlip,
+    RandomRotation,
+    ColorJitter
 )
 
 from torch.optim.lr_scheduler import MultiStepLR
@@ -132,7 +134,19 @@ def main(args):
     print(f"Device: {device}")
 
     # Define the transforms to apply to the images
-    transform = Compose([
+    train_transform = Compose([
+        ToImage(),
+        Resize(size=(640, 640)),
+        Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
+        RandomHorizontalFlip(p=0.5),
+        RandomRotation(degrees=15),
+        ColorJitter(brightness=0.2, contrast=0.2),
+        ToDtype(torch.float32, scale=True),
+        Normalize(mean=MEAN, std=STD),
+    ])
+
+    # Validation transform without augmentations
+    valid_transform = Compose([
         ToImage(),
         Resize(size=(640, 640)),
         Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
@@ -146,14 +160,14 @@ def main(args):
         split="train", 
         mode="fine", 
         target_type="semantic", 
-        transforms=transform
+        transforms=train_transform
     )
     valid_dataset = Cityscapes(
         args.data_dir, 
         split="val", 
         mode="fine", 
         target_type="semantic", 
-        transforms=transform
+        transforms=valid_transform
     )
 
     train_dataset = wrap_dataset_for_transforms_v2(train_dataset)
