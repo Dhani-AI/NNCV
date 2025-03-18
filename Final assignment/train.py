@@ -14,6 +14,8 @@ Feel free to customize the script as needed for your use case.
 """
 import os
 from argparse import ArgumentParser
+from typing import Dict
+import numpy as np
 
 import wandb
 import torch
