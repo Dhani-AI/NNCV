@@ -218,9 +218,9 @@ def main(args):
         max_lr=args.lr,  # Peak learning rate
         epochs=args.epochs,
         steps_per_epoch=len(train_dataloader),
-        pct_start=0.1,  # Spend 30% of time warming up
-        div_factor=25,
-        final_div_factor=1000,  # Final LR = max_lr/100
+        pct_start=0.1,  # Spend 10% of time warming up
+        div_factor=10,
+        final_div_factor=100,  # Final LR = max_lr/100
         anneal_strategy='cos' # Cosine annealing
     )
 
