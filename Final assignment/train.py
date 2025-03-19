@@ -140,7 +140,7 @@ def main(args):
         Resize(size=(640, 640)),
         Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
         RandomHorizontalFlip(p=0.5),
-        RandomRotation(degrees=15),
+        #RandomRotation(degrees=15),
         ColorJitter(brightness=0.2, contrast=0.2),
         ToDtype(torch.float32, scale=True),
         Normalize(mean=MEAN, std=STD),
