@@ -89,15 +89,3 @@ class DINOv2Segmentation(nn.Module):
         classifier_out = self.decode_head(concatenated_features)
 
         return classifier_out
-
-    
-if __name__ == '__main__':
-    model = DINOv2Segmentation()
-
-    from torchinfo import summary
-    summary(
-        model, 
-        (1, 3, 644, 644),
-        col_names=('input_size', 'output_size', 'num_params'),
-        row_settings=['var_names']
-    )
