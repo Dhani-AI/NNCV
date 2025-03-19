@@ -75,7 +75,6 @@ class DINOv2Segmentation(nn.Module):
 
         self.decode_head = LinearClassifierToken(in_channels=1536, nc=19, tokenW=46, tokenH=46)
 
-
     def forward(self, x):
         features = self.backbone_model(x)
 
