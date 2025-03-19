@@ -200,7 +200,7 @@ def main(args):
         ).to(device)
     elif args.model == "dinov2":
         print("Initializing DINOv2 model")
-        model = DINOv2Segmentation()
+        model = DINOv2Segmentation(fine_tune=False)
         model.decode_head.conv_seg = nn.Conv2d(1536, 19, kernel_size=(1, 1), stride=(1, 1))
         _ = model.to(device)
     else:
