@@ -45,7 +45,7 @@ MEAN = [0.28689554, 0.32513303, 0.28389177]
 STD = [0.18696375, 0.19017339, 0.18720214]
 
 CITYSCAPES_CLASSES = [cls.name for cls in Cityscapes.classes if cls.train_id != 255]
-print(CITYSCAPES_CLASSES)
+print("Cityscapes classes:", CITYSCAPES_CLASSES)
 
 # Mapping class IDs to train IDs
 id_to_trainid = {cls.id: cls.train_id for cls in Cityscapes.classes}
