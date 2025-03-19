@@ -75,13 +75,9 @@ class DINOv2Segmentation(nn.Module):
 
         self.decode_head = LinearClassifierToken(in_channels=1536, nc=19, tokenW=46, tokenH=46)
 
-        self.model = nn.Sequential(OrderedDict([
-            ('backbone', self.backbone_model),
-            ('decode_head', self.decode_head)
-        ]))
 
     def forward(self, x):
-        features = self.model.backbone(x)
+        features = self.backbone_model(x)
 
         # `features` is a tuple.
         concatenated_features = torch.cat(features, 1)
