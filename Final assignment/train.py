@@ -212,21 +212,21 @@ def main(args):
     # Define the optimizer
     optimizer = AdamW(model.parameters(), weight_decay=0.0001, lr=args.lr)
 
-    # # LR Scheduler.
-    # scheduler = OneCycleLR(
-    #     optimizer,
-    #     max_lr=args.lr,  # Peak learning rate
-    #     epochs=args.epochs,
-    #     steps_per_epoch=len(train_dataloader),
-    #     pct_start=0.3,  # Spend 10% of time warming up
-    #     div_factor=10,
-    #     final_div_factor=50,  # Final LR = max_lr/50
-    #     anneal_strategy='cos' # Cosine annealing
-    # )
-
-    scheduler = MultiStepLR(
-        optimizer, milestones=args.scheduler_epochs, gamma=0.1
+    # LR Scheduler.
+    scheduler = OneCycleLR(
+        optimizer,
+        max_lr=args.lr,  # Peak learning rate
+        epochs=args.epochs,
+        steps_per_epoch=len(train_dataloader),
+        pct_start=0.1,  # Spend 10% of time warming up
+        div_factor=10,
+        final_div_factor=50,  # Final LR = max_lr/50
+        anneal_strategy='cos' # Cosine annealing
     )
+
+    # scheduler = MultiStepLR(
+    #     optimizer, milestones=args.scheduler_epochs, gamma=0.1
+    # )
 
     ##################################################################
 
@@ -264,7 +264,7 @@ def main(args):
             optimizer.step()
             ##################################################
 
-            # scheduler.step()
+            scheduler.step()
 
             wandb.log({
                 "train_loss": loss.item(),
@@ -331,8 +331,8 @@ def main(args):
             
             mean_dice = np.mean(list(class_dice_scores.values()))
 
-            if args.scheduler:
-                scheduler.step()
+            # if args.scheduler:
+            #     scheduler.step()
 
             wandb.log({
                 "valid_loss": valid_loss,
