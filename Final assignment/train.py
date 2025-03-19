@@ -311,8 +311,8 @@ def main(args):
                     predictions = convert_train_id_to_color(predictions)
                     labels = convert_train_id_to_color(labels)
 
-                    predictions_img = make_grid(predictions.cpu(), nrow=4)
-                    labels_img = make_grid(labels.cpu(), nrow=4)
+                    predictions_img = make_grid(predictions.cpu(), nrow=16)
+                    labels_img = make_grid(labels.cpu(), nrow=16)
 
                     predictions_img = predictions_img.permute(1, 2, 0).numpy()
                     labels_img = labels_img.permute(1, 2, 0).numpy()
