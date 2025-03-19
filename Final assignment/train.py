@@ -201,7 +201,7 @@ def main(args):
     elif args.model == "dinov2":
         print("Initializing DINOv2 model")
         model = DINOv2Segmentation(fine_tune=False)
-        model.decode_head.conv_seg = nn.Conv2d(1536, 19, kernel_size=(1, 1), stride=(1, 1))
+        # model.decode_head.conv = nn.Conv2d(1536, 19, kernel_size=(1, 1), stride=(1, 1))
         _ = model.to(device)
     else:
         raise ValueError(f"Invalid model type: {args.model}")
