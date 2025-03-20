@@ -296,8 +296,6 @@ def main(args):
                 labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
                 images, labels = images.to(device), labels.to(device)
 
-                labels = labels[:, :, 2:-2, 2:-2]  # Remove 2 pixels padding
-
                 # Convert to long and remove channel dimension
                 labels = labels.long().squeeze(1)  # [B, 640, 640] 
 
