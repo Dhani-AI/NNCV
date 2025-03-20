@@ -214,7 +214,7 @@ def main(args):
         ).to(device)
     elif args.model == "dinov2":
         print("Initializing DINOv2 model")
-        model = DINOv2Segmentation(fine_tune=True)
+        model = DINOv2Segmentation(fine_tune=False)
         _ = model.to(device)
     else:
         raise ValueError(f"Invalid model type: {args.model}")
