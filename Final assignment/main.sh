@@ -2,7 +2,7 @@ wandb login
 
 python3 train.py \
     --data-dir ./data/cityscapes \
-    --batch-size 64 \
+    --batch-size 32 \
     --epochs 50 \
     --lr 0.005 \
     --num-workers 10 \
