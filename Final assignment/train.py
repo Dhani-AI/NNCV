@@ -233,7 +233,7 @@ def main(args):
         steps_per_epoch=len(train_dataloader),
         pct_start=0.3,  # Spend 10% of time warming up
         div_factor=10,
-        final_div_factor=50,  # Final LR = max_lr/50
+        final_div_factor=100,  # Final LR = max_lr/50
         anneal_strategy='cos' # Cosine annealing
     )
 
