@@ -277,6 +277,7 @@ def main(args):
             optimizer.step()
             ##################################################
 
+            # OneCycleLR scheduler step a
             scheduler.step()
 
             wandb.log({
@@ -345,6 +346,7 @@ def main(args):
             
             mean_dice = np.mean(list(class_dice_scores.values()))
 
+            # # If MultiStepLR scheduler is used, step at the end of each epoch
             # if args.scheduler:
             #     scheduler.step()
 
