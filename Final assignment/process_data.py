@@ -30,10 +30,10 @@ def postprocess(prediction, shape):
     Output should be numpy array with size [x,y,n], where x,y are the original size of the image and n is the class label per pixel.
     We expect n to return the training id as class labels. training id 255 will be ignored during evaluation."""
     
-    # First upsample to 640x640 (matching training pipeline)
+    # First upsample to 644x644 (matching training pipeline)
     upsampled_logits = torch.nn.functional.interpolate(
         prediction, 
-        size=(640, 640),  # Match training size
+        size=(644, 644),  # Match training size
         mode="bilinear",
         align_corners=False
     )
@@ -42,9 +42,6 @@ def postprocess(prediction, shape):
     prediction_soft = m(upsampled_logits)
     prediction_max = torch.argmax(prediction_soft, axis=1)
 
-    # Remove padding (2 pixels each side)
-    prediction_max = prediction_max[:, 2:-2, 2:-2]
-    
     prediction = transforms.functional.resize(
         prediction_max, 
         size=shape, 
