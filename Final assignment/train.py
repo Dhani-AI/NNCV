@@ -140,8 +140,8 @@ def main(args):
         Resize(size=(640, 640)),
         Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
         RandomHorizontalFlip(p=0.5),
-        #RandomRotation(degrees=15),
-        ColorJitter(brightness=0.2, contrast=0.2),
+        RandomRotation(degrees=15),
+        ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
         ToDtype(torch.float32, scale=True),
         Normalize(mean=MEAN, std=STD),
     ])
@@ -201,7 +201,6 @@ def main(args):
     elif args.model == "dinov2":
         print("Initializing DINOv2 model")
         model = DINOv2Segmentation(fine_tune=False)
-        # model.decode_head.conv = nn.Conv2d(1536, 19, kernel_size=(1, 1), stride=(1, 1))
         _ = model.to(device)
     else:
         raise ValueError(f"Invalid model type: {args.model}")
@@ -210,7 +209,7 @@ def main(args):
     criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
     # Define the optimizer
-    optimizer = AdamW(model.parameters(), weight_decay=0.0001, lr=args.lr)
+    optimizer = AdamW(model.parameters(), weight_decay=0.001, lr=args.lr)
 
     # LR Scheduler.
     scheduler = OneCycleLR(
@@ -218,7 +217,7 @@ def main(args):
         max_lr=args.lr,  # Peak learning rate
         epochs=args.epochs,
         steps_per_epoch=len(train_dataloader),
-        pct_start=0.1,  # Spend 10% of time warming up
+        pct_start=0.3,  # Spend 10% of time warming up
         div_factor=10,
         final_div_factor=50,  # Final LR = max_lr/50
         anneal_strategy='cos' # Cosine annealing
@@ -283,9 +282,12 @@ def main(args):
                 labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
                 images, labels = images.to(device), labels.to(device)
 
-                labels = labels.long().squeeze(1)  # Remove channel dimension
+                labels = labels[:, :, 2:-2, 2:-2]  # Remove 2 pixels padding
 
-                outputs = model(images)
+                # Convert to long and remove channel dimension
+                labels = labels.long().squeeze(1)  # [B, 640, 640] 
+
+                outputs = model(images) # [B, 46, 46]
 
                 upsampled_logits = nn.functional.interpolate(
                 outputs, size=labels.shape[-2:], 
