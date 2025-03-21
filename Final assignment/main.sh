@@ -7,7 +7,7 @@ python3 train.py \
     --lr 0.001 \
     --num-workers 10 \
     --seed 42 \
-    --experiment-id "dinov2-head-training" \
+    --experiment-id "dinov2-ade20k-backbone" \
     --model "dinov2" \
     --scheduler \
     --scheduler-epochs 80 \
