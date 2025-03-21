@@ -17,7 +17,8 @@ import torch.nn as nn
 
 from functools import partial
 from collections import OrderedDict
-from temp import model as model_dict
+
+from config_vits14 import model as model_dict
 
 def load_backbone():
     BACKBONE_SIZE = "small" # in ("small", "base", "large" or "giant")
