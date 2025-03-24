@@ -121,16 +121,24 @@ def calculate_class_weights(dataset):
     print("Calculating class weights...")
     
     for _, label in dataset:
-        label = convert_to_train_id(label)
-        classes, counts = torch.unique(label, return_counts=True) # Count class occurrences
+        label = convert_to_train_id(label).cpu()
+        
+        # Only count valid classes (0-18)
+        valid_mask = (label < 19)
+        label_valid = label[valid_mask]
+
+        # Count occurrences of each class
+        classes, counts = torch.unique(label_valid, return_counts=True)
         for cls, cnt in zip(classes, counts):
-            if cls < 19:  # Ignore void class
-                class_counts[cls] += cnt
-                total_pixels += cnt
+            class_counts[cls.long()] += cnt
+            total_pixels += cnt
+    
+    # Avoid division by zero
+    class_counts = torch.clamp(class_counts, min=1.0)
     
     # Calculate frequencies and weights
     frequencies = class_counts / total_pixels
-    weights = 1.0 / torch.log(class_counts + 1.02)  # Add smoothing factor
+    weights = 1.0 / torch.log(class_counts + 1.02)
     
     # Normalize weights
     weights = weights / weights.sum() * len(weights)
