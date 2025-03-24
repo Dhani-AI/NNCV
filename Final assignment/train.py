@@ -45,9 +45,11 @@ from model import Model
 from dino_model import DINOv2Segmentation
 from torchinfo import summary
 
+# Mean and standard deviation of the Cityscapes dataset
 MEAN = [0.28689554, 0.32513303, 0.28389177]
 STD = [0.18696375, 0.19017339, 0.18720214]
 
+# Cityscapes classes
 CITYSCAPES_CLASSES = [cls.name for cls in Cityscapes.classes if cls.train_id != 255]
 print("Cityscapes classes:", CITYSCAPES_CLASSES)
 
