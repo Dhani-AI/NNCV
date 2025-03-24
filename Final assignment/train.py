@@ -133,29 +133,28 @@ def calculate_class_weights(dataset):
         # Count occurrences of each class
         classes, counts = torch.unique(label_valid, return_counts=True)
         for cls, cnt in zip(classes, counts):
-            class_counts[cls.long()] += cnt
-            total_pixels += cnt
+            if cls < 19:
+                class_counts[cls.long()] += cnt
+                total_pixels += cnt
     
-    # Avoid division by zero
+    # Avoid division by zero and calculate weights
     class_counts = torch.clamp(class_counts, min=1.0)
-    
-    # Calculate frequencies and weights
     frequencies = class_counts / total_pixels
     weights = 1.0 / torch.log(class_counts + 1.02)
     
-    # Normalize weights
+    # Normalize weights to sum to number of classes
     weights = weights / weights.sum() * len(weights)
     
-    # Print detailed statistics
+    # Print statistics for debugging
     print("\nClass Statistics:")
     print(f"{'Class':<20} {'Count':<12} {'Freq %':<10} {'Weight':<10}")
     print("-" * 55)
     
-    for cls_id, cls_name in enumerate(CITYSCAPES_CLASSES):
-        count = class_counts[cls_id].item()
-        freq = frequencies[cls_id].item() * 100
-        weight = weights[cls_id].item()
-        print(f"{cls_name:<20} {count:<12.0f} {freq:<10.2f} {weight:<10.3f}")
+    for i in range(19):  # Iterate over valid classes only
+        count = class_counts[i].item()
+        freq = frequencies[i].item() * 100
+        weight = weights[i].item()
+        print(f"{CITYSCAPES_CLASSES[i]:<20} {count:<12.0f} {freq:<10.2f} {weight:<10.3f}")
     
     print(f"\nTotal pixels: {total_pixels:,}")
     print(f"Weight range: {weights.min().item():.3f} to {weights.max().item():.3f}")
