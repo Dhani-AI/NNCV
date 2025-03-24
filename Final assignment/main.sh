@@ -9,4 +9,4 @@ python3 train.py \
     --seed 42 \
     --experiment-id "dinov2-large-backbone" \
     --model "dinov2" \
-    --weighted-loss \
+    --weighted \

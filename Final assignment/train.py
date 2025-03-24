@@ -83,7 +83,7 @@ def get_args_parser():
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     parser.add_argument("--experiment-id", type=str, default="unet-training", help="Experiment ID for Weights & Biases")
     parser.add_argument("--model", type=str, default="unet", help="Model architecture to use")
-    parser.add_argument("--weighted-loss", action="store_true", help="Use class weights in loss function")
+    parser.add_argument("--weighted", action="store_true", help="Use class weights in loss function")
 
     return parser
     
@@ -242,8 +242,8 @@ def main(args):
     else:
         raise ValueError(f"Invalid model type: {args.model}")
     
-     # Define the loss function
-    if args.weighted-loss:
+    # Define the loss function
+    if args.weighted:
         class_weights = calculate_class_weights(train_dataset)
         class_weights = class_weights.to(device)
         criterion = nn.CrossEntropyLoss(weight=class_weights, ignore_index=255)
