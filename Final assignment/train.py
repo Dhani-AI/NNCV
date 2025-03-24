@@ -117,6 +117,7 @@ def calculate_dice_score(pred: torch.Tensor, target: torch.Tensor, num_classes: 
 def calculate_class_weights(dataset):
     """Calculate inverse frequency class weights"""
     class_counts = torch.zeros(19)
+    total_pixels = 0
     print("Calculating class weights...")
     
     for _, label in dataset:
@@ -125,15 +126,28 @@ def calculate_class_weights(dataset):
         for cls, cnt in zip(classes, counts):
             if cls < 19:  # Ignore void class
                 class_counts[cls] += cnt
+                total_pixels += cnt
     
-    # Inverse frequency weighting with smoothing
-    weights = 1.0 / (torch.log(class_counts + 1.02))
+    # Calculate frequencies and weights
+    frequencies = class_counts / total_pixels
+    weights = 1.0 / torch.log(class_counts + 1.02)  # Add smoothing factor
+    
     # Normalize weights
     weights = weights / weights.sum() * len(weights)
     
-    # Print class weights for logging
-    for cls_name, weight in zip(CITYSCAPES_CLASSES, weights):
-        print(f"{cls_name}: {weight:.3f}")
+    # Print detailed statistics
+    print("\nClass Statistics:")
+    print(f"{'Class':<20} {'Count':<12} {'Freq %':<10} {'Weight':<10}")
+    print("-" * 55)
+    
+    for cls_id, cls_name in enumerate(CITYSCAPES_CLASSES):
+        count = class_counts[cls_id].item()
+        freq = frequencies[cls_id].item() * 100
+        weight = weights[cls_id].item()
+        print(f"{cls_name:<20} {count:<12.0f} {freq:<10.2f} {weight:<10.3f}")
+    
+    print(f"\nTotal pixels: {total_pixels:,}")
+    print(f"Weight range: {weights.min().item():.3f} to {weights.max().item():.3f}")
         
     return weights
 
