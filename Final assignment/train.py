@@ -43,7 +43,7 @@ from torchvision.transforms.v2 import (
 from torch.optim.lr_scheduler import OneCycleLR, CosineAnnealingLR, MultiStepLR
 from model import Model
 from dino_model import DINOv2Segmentation
-from torchinfo import summary
+# from torchinfo import summary
 
 # Mean and standard deviation of the Cityscapes dataset
 MEAN = [0.28689554, 0.32513303, 0.28389177]
@@ -264,12 +264,12 @@ def main(args):
         print("Initializing DINOv2 model")
         model = DINOv2Segmentation(fine_tune=False)
         _ = model.to(device)
-        summary(
-            model, 
-            (1, 3, 644, 644),
-            col_names=('input_size', 'output_size', 'num_params'),
-            row_settings=['var_names']
-            )
+        # summary(
+        #     model, 
+        #     (1, 3, 644, 644),
+        #     col_names=('input_size', 'output_size', 'num_params'),
+        #     row_settings=['var_names']
+        #     )
     else:
         raise ValueError(f"Invalid model type: {args.model}")
     
