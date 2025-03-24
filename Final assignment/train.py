@@ -141,11 +141,12 @@ def calculate_dice_score(pred: torch.Tensor, target: torch.Tensor, num_classes: 
 
 
 def calculate_class_weights(dataset):
-    """Calculate inverse frequency class weights with stronger emphasis on rare classes"""
+    """Calculate inverse frequency class weights with moderate emphasis on rare classes"""
     class_counts = torch.zeros(19)
     total_pixels = 0
     print("Calculating class weights...")
     
+    # Count occurrences
     for _, label in dataset:
         label = convert_to_train_id(label).cpu()
         valid_mask = (label < 19)
@@ -156,12 +157,14 @@ def calculate_class_weights(dataset):
                 class_counts[cls.long()] += cnt
                 total_pixels += cnt
     
-    # Calculate frequencies and weights with stronger inverse relationship
+    # Calculate frequencies
     frequencies = class_counts / total_pixels
-    weights = 1.0 / (frequencies * torch.log(class_counts + 1.02))
     
-    # Normalize weights but maintain larger range
-    weights = weights / weights.min()  # Make smallest weight 1.0
+    # Calculate weights with sqrt to moderate the inverse relationship
+    weights = 1.0 / torch.sqrt(frequencies + 0.02)
+    
+    # Normalize weights to range from 1 to ~5
+    weights = ((weights - weights.min()) / (weights.max() - weights.min()) * 4) + 1.0
     
     # Print statistics
     print("\nClass Statistics:")
