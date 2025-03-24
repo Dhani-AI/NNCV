@@ -243,7 +243,7 @@ def main(args):
         raise ValueError(f"Invalid model type: {args.model}")
     
      # Define the loss function
-    if args.weighted_loss:
+    if args.weighted-loss:
         class_weights = calculate_class_weights(train_dataset)
         class_weights = class_weights.to(device)
         criterion = nn.CrossEntropyLoss(weight=class_weights, ignore_index=255)
@@ -264,10 +264,6 @@ def main(args):
         final_div_factor=100,  # Final LR = max_lr/50
         anneal_strategy='cos' # Cosine annealing
     )
-
-    # scheduler = MultiStepLR(
-    #     optimizer, milestones=args.scheduler_epochs, gamma=0.1
-    # )
 
     ##################################################################
 
