@@ -53,6 +53,29 @@ STD = [0.18696375, 0.19017339, 0.18720214]
 CITYSCAPES_CLASSES = [cls.name for cls in Cityscapes.classes if cls.train_id != 255]
 print("Cityscapes classes:", CITYSCAPES_CLASSES)
 
+# Pre-calculated class weights for Cityscapes
+CITYSCAPES_CLASS_WEIGHTS = torch.tensor([
+    0.806,  # road              (41.70%)
+    0.914,  # sidewalk          (4.04%)
+    0.836,  # building          (20.51%)
+    1.048,  # wall              (0.44%)
+    1.023,  # fence             (0.64%)
+    0.981,  # pole              (1.24%)
+    1.103,  # traffic light     (0.21%)
+    1.031,  # traffic sign      (0.57%)
+    0.848,  # vegetation        (15.70%)
+    1.006,  # terrain           (0.83%)
+    0.902,  # sky               (5.19%)
+    0.975,  # person            (1.38%)
+    1.127,  # rider             (0.15%)
+    0.893,  # car               (6.17%)
+    1.081,  # truck             (0.28%)
+    1.083,  # bus               (0.27%)
+    1.098,  # train             (0.22%)
+    1.189,  # motorcycle        (0.07%)
+    1.055   # bicycle           (0.40%)
+])
+
 # Mapping class IDs to train IDs
 id_to_trainid = {cls.id: cls.train_id for cls in Cityscapes.classes}
 def convert_to_train_id(label_img: torch.Tensor) -> torch.Tensor:
@@ -118,39 +141,34 @@ def calculate_dice_score(pred: torch.Tensor, target: torch.Tensor, num_classes: 
 
 
 def calculate_class_weights(dataset):
-    """Calculate inverse frequency class weights"""
+    """Calculate inverse frequency class weights with stronger emphasis on rare classes"""
     class_counts = torch.zeros(19)
     total_pixels = 0
     print("Calculating class weights...")
     
     for _, label in dataset:
         label = convert_to_train_id(label).cpu()
-        
-        # Only count valid classes (0-18)
         valid_mask = (label < 19)
         label_valid = label[valid_mask]
-
-        # Count occurrences of each class
         classes, counts = torch.unique(label_valid, return_counts=True)
         for cls, cnt in zip(classes, counts):
             if cls < 19:
                 class_counts[cls.long()] += cnt
                 total_pixels += cnt
     
-    # Avoid division by zero and calculate weights
-    class_counts = torch.clamp(class_counts, min=1.0)
+    # Calculate frequencies and weights with stronger inverse relationship
     frequencies = class_counts / total_pixels
-    weights = 1.0 / torch.log(class_counts + 1.02)
+    weights = 1.0 / (frequencies * torch.log(class_counts + 1.02))
     
-    # Normalize weights to sum to number of classes
-    weights = weights / weights.sum() * len(weights)
+    # Normalize weights but maintain larger range
+    weights = weights / weights.min()  # Make smallest weight 1.0
     
-    # Print statistics for debugging
+    # Print statistics
     print("\nClass Statistics:")
     print(f"{'Class':<20} {'Count':<12} {'Freq %':<10} {'Weight':<10}")
     print("-" * 55)
     
-    for i in range(19):  # Iterate over valid classes only
+    for i in range(19):
         count = class_counts[i].item()
         freq = frequencies[i].item() * 100
         weight = weights[i].item()
@@ -158,7 +176,7 @@ def calculate_class_weights(dataset):
     
     print(f"\nTotal pixels: {total_pixels:,}")
     print(f"Weight range: {weights.min().item():.3f} to {weights.max().item():.3f}")
-        
+    
     return weights
 
 
@@ -274,6 +292,7 @@ def main(args):
     
     # Define the loss function
     if args.weighted:
+        print("Using pre-calculated class weights")
         class_weights = calculate_class_weights(train_dataset)
         class_weights = class_weights.to(device)
         criterion = nn.CrossEntropyLoss(weight=class_weights, ignore_index=255)
