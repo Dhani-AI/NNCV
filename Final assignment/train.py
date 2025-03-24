@@ -83,8 +83,7 @@ def get_args_parser():
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     parser.add_argument("--experiment-id", type=str, default="unet-training", help="Experiment ID for Weights & Biases")
     parser.add_argument("--model", type=str, default="unet", help="Model architecture to use")
-    parser.add_argument("--scheduler", action="store_true", help="Use learning rate scheduler")
-    parser.add_argument("--scheduler-epochs", dest="scheduler_epochs", default=[30], nargs="+", type=int, help="Epochs to decay learning rate")
+    parser.add_argument("--weighted-loss", action="store_true", help="Use class weights in loss function")
 
     return parser
     
@@ -115,6 +114,30 @@ def calculate_dice_score(pred: torch.Tensor, target: torch.Tensor, num_classes: 
     return dice_scores
 
 
+def calculate_class_weights(dataset):
+    """Calculate inverse frequency class weights"""
+    class_counts = torch.zeros(19)
+    print("Calculating class weights...")
+    
+    for _, label in dataset:
+        label = convert_to_train_id(label)
+        classes, counts = torch.unique(label, return_counts=True) # Count class occurrences
+        for cls, cnt in zip(classes, counts):
+            if cls < 19:  # Ignore void class
+                class_counts[cls] += cnt
+    
+    # Inverse frequency weighting with smoothing
+    weights = 1.0 / (torch.log(class_counts + 1.02))
+    # Normalize weights
+    weights = weights / weights.sum() * len(weights)
+    
+    # Print class weights for logging
+    for cls_name, weight in zip(CITYSCAPES_CLASSES, weights):
+        print(f"{cls_name}: {weight:.3f}")
+        
+    return weights
+
+
 def main(args):
     # Initialize wandb for logging
     wandb.init(
@@ -137,7 +160,7 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
-    # Define the transforms to apply to the images
+    # Define the transforms to apply to the train images
     train_transform = Compose([
         ToImage(),
         RandomResizedCrop(
@@ -219,8 +242,13 @@ def main(args):
     else:
         raise ValueError(f"Invalid model type: {args.model}")
     
-    # Define the loss function
-    criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
+     # Define the loss function
+    if args.weighted_loss:
+        class_weights = calculate_class_weights(train_dataset)
+        class_weights = class_weights.to(device)
+        criterion = nn.CrossEntropyLoss(weight=class_weights, ignore_index=255)
+    else:
+        criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
     # Define the optimizer
     optimizer = AdamW(model.parameters(), weight_decay=0.001, lr=args.lr)

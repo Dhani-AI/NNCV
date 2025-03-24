@@ -7,7 +7,6 @@ python3 train.py \
     --lr 0.001 \
     --num-workers 10 \
     --seed 42 \
-    --experiment-id "dinov2-ade20k-backbone-large" \
+    --experiment-id "dinov2-large-backbone" \
     --model "dinov2" \
-    --scheduler \
-    --scheduler-epochs 80 \
+    --weighted-loss \
