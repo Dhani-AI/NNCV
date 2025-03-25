@@ -280,8 +280,8 @@ def main(args):
             in_channels=3,  # RGB images
             n_classes=19,  # 19 classes in the Cityscapes dataset
         ).to(device)
-    elif args.model == "dinov2":
-        print("Initializing DINOv2 model")
+    elif args.model == "dinov2-TransferLearning":
+        print("Initializing DINOv2 model with transfer learning")
         model = DINOv2Segmentation(fine_tune=False)
         _ = model.to(device)
         # summary(
@@ -290,6 +290,10 @@ def main(args):
         #     col_names=('input_size', 'output_size', 'num_params'),
         #     row_settings=['var_names']
         #     )
+    elif args.model == "dinov2-finetune":
+        print("Initializing DINOv2 model with fine-tuning")
+        model = DINOv2Segmentation(fine_tune=True)
+        _ = model.to(device)
     else:
         raise ValueError(f"Invalid model type: {args.model}")
     
