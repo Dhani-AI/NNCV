@@ -1,15 +1,14 @@
 wandb login
 
 # Create a virtual environment in home directory (if not already created)
-export VENV_DIR="$HOME/venv_optuna"
+export VENV_DIR="$HOME/5LSM0"
 if [ ! -d "$VENV_DIR" ]; then
     python3 -m venv $VENV_DIR
     source $VENV_DIR/bin/activate
     pip install --upgrade pip
-    pip install xformers
-    pip install torchinfo
 else
     source $VENV_DIR/bin/activate
+    pip install --upgrade pip
 fi
 
 python3 train.py \
