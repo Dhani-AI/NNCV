@@ -2,13 +2,7 @@ wandb login
 
 # Create a virtual environment in home directory (if not already created)
 export VENV_DIR="$HOME/5LSM0"
-if [ ! -d "$VENV_DIR" ]; then
-    python3 -m venv $VENV_DIR
-    source $VENV_DIR/bin/activate
-    pip install --upgrade pip
-else
-    source $VENV_DIR/bin/activate
-fi
+source $VENV_DIR/bin/activate
 
 python3 train.py \
     --data-dir ./data/cityscapes \
