@@ -8,7 +8,7 @@ if [ ! -d "$VENV_DIR" ]; then
     pip install --upgrade pip
 else
     source $VENV_DIR/bin/activate
-    pip install --upgrade pip
+    module load 2023
 fi
 
 python3 train.py \
