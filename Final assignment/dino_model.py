@@ -18,10 +18,10 @@ import torch.nn as nn
 from functools import partial
 from collections import OrderedDict
 
-from config_vitl14 import model as model_dict
+from config_vitb14 import model as model_dict
 
 def load_backbone():
-    BACKBONE_SIZE = "large" # in ("small", "base", "large" or "giant")
+    BACKBONE_SIZE = "base" # in ("small", "base", "large" or "giant")
 
     backbone_archs = {
         "small": "vits14",
@@ -74,7 +74,7 @@ class DINOv2Segmentation(nn.Module):
             for name, param in self.backbone_model.named_parameters():
                 param.requires_grad = False
 
-        self.decode_head = LinearClassifierToken(in_channels=4096, nc=19, tokenW=46, tokenH=46)
+        self.decode_head = LinearClassifierToken(in_channels=3072, nc=19, tokenW=46, tokenH=46)
 
     def forward(self, x):
         features = self.backbone_model(x)
