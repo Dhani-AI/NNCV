@@ -306,7 +306,7 @@ def main(args):
         criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
     # Define the optimizer
-    optimizer = AdamW(model.parameters(), weight_decay=0.001, lr=args.lr)
+    optimizer = AdamW(model.parameters(), weight_decay=0.0001, lr=args.lr)
 
     # LR Scheduler.
     scheduler = OneCycleLR(
