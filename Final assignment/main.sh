@@ -13,3 +13,6 @@ python3 train.py \
     --multistep \
     --scheduler-epochs 80 \
     --fine-tune \
+    # --onecycle \
+    # --weighted \
+    
