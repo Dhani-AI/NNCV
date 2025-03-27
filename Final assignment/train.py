@@ -105,12 +105,17 @@ def get_args_parser():
     parser.add_argument("--batch-size", type=int, default=64, help="Training batch size")
     parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
+    parser.add_argument("--weight-decay", type=float, default=0.0001, help="Weight decay for AdamW optimizer")
     parser.add_argument("--num-workers", type=int, default=10, help="Number of workers for data loaders")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     parser.add_argument("--experiment-id", type=str, default="unet-training", help="Experiment ID for Weights & Biases")
     parser.add_argument("--model", type=str, default="unet", help="Model architecture to use")
     parser.add_argument("--weighted", action="store_true", help="Use class weights in loss function")
-
+    parser.add_argument("--multistep", action="store_true", help="Use MultiStepLR scheduler")
+    parser.add_argument("--onecycle", action="store_true", help="Use OneCycleLR scheduler")
+    parser.add_argument("--scheduler-epochs", type=int, nargs="+", default=[30], help="Epochs to adjust learning rate")
+    parser.add_argument("--fine-tune", action="store_true", help="Fine-tune the model")
+    
     return parser
     
 
@@ -280,20 +285,30 @@ def main(args):
             in_channels=3,  # RGB images
             n_classes=19,  # 19 classes in the Cityscapes dataset
         ).to(device)
-    elif args.model == "dinov2-TransferLearning":
-        print("Initializing DINOv2 model with transfer learning")
-        model = DINOv2Segmentation(fine_tune=False)
+    elif args.model == "dinov2":
+        print("Initializing DINOv2 backbone")
+        model = DINOv2Segmentation(fine_tune=args.fine_tune)
         _ = model.to(device)
-        # summary(
-        #     model, 
-        #     (1, 3, 644, 644),
-        #     col_names=('input_size', 'output_size', 'num_params'),
-        #     row_settings=['var_names']
-        #     )
-    elif args.model == "dinov2-finetune":
-        print("Initializing DINOv2 model with fine-tuning")
-        model = DINOv2Segmentation(fine_tune=True)
-        _ = model.to(device)
+
+        if args.multistep:
+            # MultiStepLR scheduler
+            scheduler = MultiStepLR(
+                optimizer,
+                milestones=args.scheduler_epochs,
+                gamma=0.1
+            )
+        elif args.onecycle:
+            # OneCycleLR scheduler
+            scheduler = OneCycleLR(
+                optimizer,
+                max_lr=args.lr,  # Peak learning rate
+                epochs=args.epochs,
+                steps_per_epoch=len(train_dataloader),
+                pct_start=0.1,  # Spend 10% of time warming up
+                div_factor=10,
+                final_div_factor=100,  # Final LR = max_lr/50
+                anneal_strategy='cos' # Cosine annealing
+            )
     else:
         raise ValueError(f"Invalid model type: {args.model}")
     
@@ -306,19 +321,7 @@ def main(args):
         criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
     # Define the optimizer
-    optimizer = AdamW(model.parameters(), weight_decay=0.0001, lr=args.lr)
-
-    # LR Scheduler.
-    scheduler = OneCycleLR(
-        optimizer,
-        max_lr=args.lr,  # Peak learning rate
-        epochs=args.epochs,
-        steps_per_epoch=len(train_dataloader),
-        pct_start=0.1,  # Spend 10% of time warming up
-        div_factor=10,
-        final_div_factor=100,  # Final LR = max_lr/50
-        anneal_strategy='cos' # Cosine annealing
-    )
+    optimizer = AdamW(model.parameters(), weight_decay=args.weight_decay, lr=args.lr)
 
     ##################################################################
 
@@ -356,8 +359,9 @@ def main(args):
             optimizer.step()
             ##################################################
 
-            # OneCycleLR scheduler step a
-            scheduler.step()
+            # OneCycleLR scheduler step
+            if args.onecycle:
+                scheduler.step()
 
             wandb.log({
                 "train_loss": loss.item(),
@@ -425,9 +429,9 @@ def main(args):
             
             mean_dice = np.mean(list(class_dice_scores.values()))
 
-            # # If MultiStepLR scheduler is used, step at the end of each epoch
-            # if args.scheduler:
-            #     scheduler.step()
+            # If MultiStepLR scheduler is used, step at the end of each epoch
+            if args.multistep:
+                scheduler.step()
 
             wandb.log({
                 "valid_loss": valid_loss,

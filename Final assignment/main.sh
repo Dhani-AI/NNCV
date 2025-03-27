@@ -2,11 +2,13 @@ wandb login
 
 python3 train.py \
     --data-dir ./data/cityscapes \
-    --batch-size 64 \
-    --epochs 100 \
-    --lr 0.001 \
+    --batch-size 32 \
+    --epochs 150 \
+    --lr 0.0001 \
     --num-workers 10 \
     --seed 42 \
     --experiment-id "dinov2-small-backbone" \
-    --model "dinov2-TransferLearning" \
-    --weighted \
+    --model "dinov2" \
+    --weight-decay 0.0001 \
+    --multistep \
+    --scheduler-epochs 80 \
