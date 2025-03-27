@@ -12,3 +12,4 @@ python3 train.py \
     --weight-decay 0.0001 \
     --multistep \
     --scheduler-epochs 80 \
+    --fine-tune \
