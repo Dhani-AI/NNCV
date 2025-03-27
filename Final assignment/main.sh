@@ -7,6 +7,6 @@ python3 train.py \
     --lr 0.001 \
     --num-workers 10 \
     --seed 42 \
-    --experiment-id "dinov2-large-backbone" \
+    --experiment-id "dinov2-small-backbone" \
     --model "dinov2" \
     --weighted \
