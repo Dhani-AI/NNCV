@@ -8,5 +8,5 @@ python3 train.py \
     --num-workers 10 \
     --seed 42 \
     --experiment-id "dinov2-small-backbone" \
-    --model "dinov2" \
+    --model "dinov2-TransferLearning" \
     --weighted \
