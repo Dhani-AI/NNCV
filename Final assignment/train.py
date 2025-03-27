@@ -285,10 +285,17 @@ def main(args):
             in_channels=3,  # RGB images
             n_classes=19,  # 19 classes in the Cityscapes dataset
         ).to(device)
+
+        # Define the optimizer
+        optimizer = AdamW(model.parameters(), weight_decay=args.weight_decay, lr=args.lr)
+
     elif args.model == "dinov2":
         print("Initializing DINOv2 backbone")
         model = DINOv2Segmentation(fine_tune=args.fine_tune)
         _ = model.to(device)
+        
+        # Define the optimizer
+        optimizer = AdamW(model.parameters(), weight_decay=args.weight_decay, lr=args.lr)
 
         if args.multistep:
             # MultiStepLR scheduler
@@ -319,9 +326,6 @@ def main(args):
         criterion = nn.CrossEntropyLoss(weight=class_weights, ignore_index=255)
     else:
         criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
-
-    # Define the optimizer
-    optimizer = AdamW(model.parameters(), weight_decay=args.weight_decay, lr=args.lr)
 
     ##################################################################
 
