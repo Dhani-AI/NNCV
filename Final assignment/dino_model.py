@@ -20,21 +20,22 @@ from collections import OrderedDict
 
 from config_vits14 import model as model_dict
 
-def load_backbone():
-    BACKBONE_SIZE = "small" # in ("small", "base", "large" or "giant")
-
+def load_backbone(backbone_size="small"):
+    """
+    Load the DINOv2 backbone model from Facebook Research's repository."
+    """
     backbone_archs = {
         "small": "vits14",
         "base": "vitb14",
         "large": "vitl14",
         "giant": "vitg14",
     }
-    backbone_arch = backbone_archs[BACKBONE_SIZE]
+
+    backbone_arch = backbone_archs[backbone_size]
     backbone_name = f"dinov2_{backbone_arch}"
 
-
     backbone_model = torch.hub.load(repo_or_dir="facebookresearch/dinov2", model=backbone_name)
-    backbone_model.cuda()
+    # backbone_model.cuda()
 
     backbone_model.forward = partial(
         backbone_model.get_intermediate_layers,
@@ -58,15 +59,23 @@ class LinearClassifierToken(torch.nn.Module):
         outputs =  self.conv(
             x.reshape(-1, self.in_channels, self.H, self.W)
         )
-        return outputs
+        
+        upsampled_logits = nn.functional.interpolate(
+            outputs, size=(self.H*14, self.W*14), 
+            mode='bilinear', 
+            align_corners=False
+        )
+        
+        return upsampled_logits
 
 
 class DINOv2Segmentation(nn.Module):
-    def __init__(self, fine_tune=False):
+    def __init__(self, num_classes=19, fine_tune=False):
         super(DINOv2Segmentation, self).__init__()
 
         self.backbone_model = load_backbone()
         print("Backbone model loaded successfully.")
+
         if fine_tune:
             for name, param in self.backbone_model.named_parameters():
                 param.requires_grad = True
@@ -74,7 +83,7 @@ class DINOv2Segmentation(nn.Module):
             for name, param in self.backbone_model.named_parameters():
                 param.requires_grad = False
 
-        self.decode_head = LinearClassifierToken(in_channels=1536, nc=19, tokenW=46, tokenH=46)
+        self.decode_head = LinearClassifierToken(in_channels=1536, nc=num_classes, tokenW=46, tokenH=46)
 
     def forward(self, x):
         features = self.backbone_model(x)

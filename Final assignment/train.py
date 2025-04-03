@@ -291,8 +291,8 @@ def main(args):
 
     elif args.model == "dinov2":
         print("Initializing DINOv2 backbone")
-        model = DINOv2Segmentation(fine_tune=args.fine_tune)
-        _ = model.to(device)
+        model = DINOv2Segmentation(num_classes=19, fine_tune=args.fine_tune)
+        model.to(device)
         
         # Define the optimizer
         optimizer = AdamW(model.parameters(), weight_decay=args.weight_decay, lr=args.lr)
@@ -347,15 +347,8 @@ def main(args):
             optimizer.zero_grad()
             outputs = model(images)
 
-            # Model originally outputs 46x46 logits
-            upsampled_logits = nn.functional.interpolate(
-                outputs, size=labels.shape[-2:], 
-                mode="bilinear", 
-                align_corners=False
-            )
-
             ##### BATCH-WISE LOSS #####
-            loss = criterion(upsampled_logits, labels)
+            loss = criterion(outputs, labels)
             #############################
 
             ##### BACKPROPAGATION AND PARAMETER UPDATION #####
@@ -389,23 +382,17 @@ def main(args):
 
                 outputs = model(images) # [B, 46, 46]
 
-                upsampled_logits = nn.functional.interpolate(
-                outputs, size=labels.shape[-2:], 
-                mode="bilinear", 
-                align_corners=False
-                )
-
                 # Calculate loss
-                loss = criterion(upsampled_logits, labels)
+                loss = criterion(outputs, labels)
                 losses.append(loss.item())
 
                 # Calculate Dice Score
-                dice_preds = upsampled_logits.softmax(1) 
+                dice_preds = outputs.softmax(1) 
                 batch_dice_scores = calculate_dice_score(dice_preds, labels)
                 epoch_dice_scores.append(batch_dice_scores)
 
                 if i == 0:
-                    predictions = upsampled_logits.softmax(1).argmax(1)
+                    predictions = outputs.softmax(1).argmax(1)
 
                     predictions = predictions.unsqueeze(1)
                     labels = labels.unsqueeze(1)
