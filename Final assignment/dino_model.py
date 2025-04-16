@@ -16,11 +16,15 @@ import torch
 import torch.nn as nn
 
 from functools import partial
-from collections import OrderedDict
 
+## CHANGE ACCORDING TO THE ViT MODEL YOU ARE USING
+# ------------------------------------------------
 from config_vits14 import model as model_dict
+# from config_vitb14 import model as model_dict 
+# from config_vitl14 import model as model_dict
+# from config_vitg14 import model as model_dict
 
-def load_backbone(backbone_size="small"):
+def load_backbone(backbone_size="small"): # "small", "base", "large", "giant"
     """
     Load the DINOv2 backbone model from Facebook Research's repository."
     """
@@ -94,3 +98,13 @@ class DINOv2Segmentation(nn.Module):
         classifier_out = self.decode_head(concatenated_features)
 
         return classifier_out
+    
+# if __name__ == '__main__':
+#     model = DINOv2Segmentation()
+#     from torchinfo import summary
+#     summary(
+#         model, 
+#         (1, 3, 644, 644),
+#         col_names=('input_size', 'output_size', 'num_params'),
+#         row_settings=['var_names']
+#     )
