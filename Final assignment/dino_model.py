@@ -24,7 +24,7 @@ from config_vits14 import model as model_dict
 # from config_vitl14 import model as model_dict
 # from config_vitg14 import model as model_dict
 
-def load_backbone(backbone_size="small"): # "small", "base", "large", "giant"
+def load_backbone(backbone_size="giant"): # "small", "base", "large", "giant"
     """
     Load the DINOv2 backbone model from Facebook Research's repository."
     """
@@ -87,7 +87,7 @@ class DINOv2Segmentation(nn.Module):
             for name, param in self.backbone_model.named_parameters():
                 param.requires_grad = False
 
-        self.decode_head = LinearClassifierToken(in_channels=1536, nc=num_classes, tokenW=46, tokenH=46)
+        self.decode_head = LinearClassifierToken(in_channels=6144, nc=num_classes, tokenW=46, tokenH=46)
 
     def forward(self, x):
         features = self.backbone_model(x)
