@@ -214,10 +214,10 @@ def main(args):
     train_transform = Compose([
         ToImage(),
         RandomResizedCrop(
-            size=(644, 644), 
+            size=(640, 640), 
             scale=(0.5, 2.0),
             ratio=(0.75, 1.333)),
-        #Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
+        Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
         RandomHorizontalFlip(p=0.5),
         RandomRotation(degrees=(-10, 10),
                        interpolation=InterpolationMode.BILINEAR,
@@ -236,8 +236,8 @@ def main(args):
     # Validation transform without augmentations
     valid_transform = Compose([
         ToImage(),
-        Resize(size=(644, 644)),
-        #Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
+        Resize(size=(640, 640)),
+        Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
         ToDtype(torch.float32, scale=True),
         Normalize(mean=MEAN, std=STD),
     ])
