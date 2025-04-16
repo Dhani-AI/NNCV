@@ -19,10 +19,10 @@ from functools import partial
 
 ## CHANGE ACCORDING TO THE ViT MODEL YOU ARE USING
 # ------------------------------------------------
-from config_vits14 import model as model_dict
+# from config_vits14 import model as model_dict
 # from config_vitb14 import model as model_dict 
 # from config_vitl14 import model as model_dict
-# from config_vitg14 import model as model_dict
+from config_vitg14 import model as model_dict
 
 def load_backbone(backbone_size="giant"): # "small", "base", "large", "giant"
     """
