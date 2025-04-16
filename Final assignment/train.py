@@ -214,10 +214,10 @@ def main(args):
     train_transform = Compose([
         ToImage(),
         RandomResizedCrop(
-            size=(640, 640), 
+            size=(644, 644), 
             scale=(0.5, 2.0),
             ratio=(0.75, 1.333)),
-        Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
+        #Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
         RandomHorizontalFlip(p=0.5),
         RandomRotation(degrees=(-10, 10),
                        interpolation=InterpolationMode.BILINEAR,
@@ -236,8 +236,8 @@ def main(args):
     # Validation transform without augmentations
     valid_transform = Compose([
         ToImage(),
-        Resize(size=(640, 640)),
-        Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
+        Resize(size=(644, 644)),
+        #Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
         ToDtype(torch.float32, scale=True),
         Normalize(mean=MEAN, std=STD),
     ])
@@ -378,9 +378,9 @@ def main(args):
                 images, labels = images.to(device), labels.to(device)
 
                 # Convert to long and remove channel dimension
-                labels = labels.long().squeeze(1)  # [B, 640, 640] 
+                labels = labels.long().squeeze(1)
 
-                outputs = model(images) # [B, 46, 46]
+                outputs = model(images)
 
                 # Calculate loss
                 loss = criterion(outputs, labels)
