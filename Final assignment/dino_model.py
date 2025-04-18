@@ -50,6 +50,59 @@ def load_backbone(backbone_size="small"): # "small", "base", "large", "giant"
     return backbone_model
 
 
+class ASPPHead(nn.Module):
+    def __init__(self, in_channels, num_classes, hidden_dim=256):
+        super().__init__()
+        self.H = 46
+        self.W = 46
+        
+        self.aspp = nn.ModuleList([
+            nn.Conv2d(in_channels, hidden_dim, 1),
+            nn.Sequential(
+                nn.Conv2d(in_channels, hidden_dim, 3, padding=6, dilation=6),
+                nn.BatchNorm2d(hidden_dim),
+                nn.ReLU()
+            ),
+            nn.Sequential(
+                nn.Conv2d(in_channels, hidden_dim, 3, padding=12, dilation=12),
+                nn.BatchNorm2d(hidden_dim),
+                nn.ReLU()
+            ),
+            nn.Sequential(
+                nn.AdaptiveAvgPool2d(1),
+                nn.Conv2d(in_channels, hidden_dim, 1),
+                nn.ReLU()
+            )
+        ])
+        
+        self.project = nn.Sequential(
+            nn.Conv2d(hidden_dim * 4, hidden_dim, 1, bias=False),
+            nn.BatchNorm2d(hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Conv2d(hidden_dim, num_classes, 1)
+        )
+
+    def forward(self, x):
+        x = x.reshape(-1, x.shape[1], self.H, self.W)
+        res = []
+        for aspp_module in self.aspp:
+            feat = aspp_module(x)
+            if feat.size() != x.size():
+                feat = nn.functional.interpolate(
+                    feat, size=x.size()[2:], mode='bilinear', align_corners=False
+                )
+            res.append(feat)
+        
+        x = torch.cat(res, dim=1)
+        x = self.project(x)
+        
+        return nn.functional.interpolate(
+            x, size=(self.H*14, self.W*14), 
+            mode='bilinear', 
+            align_corners=False
+        )
+
 class LinearClassifierToken(torch.nn.Module):
     def __init__(self, in_channels, nc=1, tokenW=32, tokenH=32):
         super(LinearClassifierToken, self).__init__()
@@ -87,7 +140,8 @@ class DINOv2Segmentation(nn.Module):
             for name, param in self.backbone_model.named_parameters():
                 param.requires_grad = False
 
-        self.decode_head = LinearClassifierToken(in_channels=1536, nc=num_classes, tokenW=46, tokenH=46)
+        # self.decode_head = LinearClassifierToken(in_channels=1536, nc=num_classes, tokenW=46, tokenH=46)
+        self.decode_head = ASPPHead(in_channels=1536, num_classes=num_classes)
 
     def forward(self, x):
         features = self.backbone_model(x)
