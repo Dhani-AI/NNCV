@@ -7,7 +7,7 @@ python3 train.py \
     --lr 0.001 \
     --num-workers 10 \
     --seed 42 \
-    --experiment-id "dinov2-small-baseline" \
+    --experiment-id "dinov2-small-ASPP" \
     --model "dinov2" \
     --weight-decay 0.0001 \
     --multistep \
