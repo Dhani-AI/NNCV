@@ -41,9 +41,7 @@ from torchvision.transforms.v2 import (
 )
 
 from torch.optim.lr_scheduler import OneCycleLR, CosineAnnealingLR, MultiStepLR
-from model import Model
 from dino_model import DINOv2Segmentation
-# from torchinfo import summary
 
 # Mean and standard deviation of the Cityscapes dataset
 MEAN = [0.28689554, 0.32513303, 0.28389177]
@@ -280,17 +278,7 @@ def main(args):
     )
     
     ################# DEFINE THE MODEL ARCHITECTURE ##################
-    if args.model == "unet":
-        print("Initializing U-Net model")
-        model = Model(
-            in_channels=3,  # RGB images
-            n_classes=19,  # 19 classes in the Cityscapes dataset
-        ).to(device)
-
-        # Define the optimizer
-        optimizer = AdamW(model.parameters(), weight_decay=args.weight_decay, lr=args.lr)
-
-    elif args.model == "dinov2":
+    if args.model == "dinov2":
         print("Initializing DINOv2 backbone")
         model = DINOv2Segmentation(num_classes=19, fine_tune=args.fine_tune)
         model.to(device)
