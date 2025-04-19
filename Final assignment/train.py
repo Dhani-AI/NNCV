@@ -213,23 +213,23 @@ def main(args):
     # Define the transforms to apply to the train images
     train_transform = Compose([
         ToImage(),
-        Resize(size=(644, 644)),
-        # RandomResizedCrop(
-        #     size=(640, 640), 
-        #     scale=(0.5, 2.0),
-        #     ratio=(0.75, 1.333)),
+        # Resize(size=(644, 644)),
+        RandomResizedCrop(
+            size=(644, 644), 
+            scale=(0.5, 2.0),
+            ratio=(0.75, 1.333)),
         # Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
-        # RandomHorizontalFlip(p=0.5),
-        # RandomRotation(degrees=(-10, 10),
-        #                interpolation=InterpolationMode.BILINEAR,
-        #                fill=0),
-        # ColorJitter(
-        #     brightness=0.3, 
-        #     contrast=0.3, 
-        #     saturation=0.3, 
-        #     hue=0.1),
-        # GaussianBlur(kernel_size=(3, 3), 
-        #              sigma=(0.1, 1.0)),
+        RandomHorizontalFlip(p=0.5),
+        RandomRotation(degrees=(-10, 10),
+                       interpolation=InterpolationMode.BILINEAR,
+                       fill=0),
+        ColorJitter(
+            brightness=0.3, 
+            contrast=0.3, 
+            saturation=0.3, 
+            hue=0.1),
+        GaussianBlur(kernel_size=(3, 3), 
+                     sigma=(0.1, 1.0)),
         ToDtype(torch.float32, scale=True),
         Normalize(mean=MEAN, std=STD),
     ])
@@ -238,7 +238,7 @@ def main(args):
     valid_transform = Compose([
         ToImage(),
         Resize(size=(644, 644)),
-        #Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
+        # Pad(padding=[2, 2, 2, 2], padding_mode='constant', fill=0),
         ToDtype(torch.float32, scale=True),
         Normalize(mean=MEAN, std=STD),
     ])
