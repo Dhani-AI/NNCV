@@ -51,6 +51,11 @@ def load_backbone(backbone_size="small"): # "small", "base", "large", "giant"
 
 
 class ASPPHead(nn.Module):
+    """
+    Atrous Spatial Pyramid Pooling (ASPP) head for semantic segmentation.
+    This head is used to process the features extracted from the backbone model and generate
+    segmentation maps at multiple scales.
+    """
     def __init__(self, in_channels, num_classes, hidden_dim=256):
         super().__init__()
         self.H = 46
@@ -105,6 +110,11 @@ class ASPPHead(nn.Module):
     
 
 class FPNHead(nn.Module):
+    """
+    Feature Pyramid Network (FPN) head for semantic segmentation.
+    This head is used to process the features extracted from the backbone model and generate
+    segmentation maps at multiple scales.
+    """
     def __init__(self, in_channels, num_classes, hidden_dim=256):
         super().__init__()
         self.H = 46
@@ -138,6 +148,11 @@ class FPNHead(nn.Module):
     
 
 class LinearClassifierToken(torch.nn.Module):
+    """
+    Linear classifier for the DINOv2 model.
+    This classifier is used to predict the class labels for the input images.
+    It takes the output of the backbone model and applies a linear transformation to it.
+    """
     def __init__(self, in_channels, nc=1, tokenW=32, tokenH=32):
         super(LinearClassifierToken, self).__init__()
         self.in_channels = in_channels
@@ -161,6 +176,12 @@ class LinearClassifierToken(torch.nn.Module):
 
 
 class DINOv2Segmentation(nn.Module):
+    """
+    DINOv2 model for semantic segmentation.
+    This model uses the DINOv2 backbone and adds a custom segmentation head to it.
+    The segmentation head is responsible for generating the final segmentation maps from the
+    features extracted by the backbone model.
+    """
     def __init__(self, num_classes=19, fine_tune=False):
         super(DINOv2Segmentation, self).__init__()
 
@@ -174,9 +195,9 @@ class DINOv2Segmentation(nn.Module):
             for name, param in self.backbone_model.named_parameters():
                 param.requires_grad = False
 
-        # self.decode_head = LinearClassifierToken(in_channels=1536, nc=num_classes, tokenW=46, tokenH=46)
+        self.decode_head = LinearClassifierToken(in_channels=1536, nc=num_classes, tokenW=46, tokenH=46)
         # self.decode_head = ASPPHead(in_channels=1536, num_classes=num_classes)
-        self.decode_head = FPNHead(in_channels=1536, num_classes=num_classes)
+        # self.decode_head = FPNHead(in_channels=1536, num_classes=num_classes)
 
     def forward(self, x):
         features = self.backbone_model(x)
@@ -188,12 +209,12 @@ class DINOv2Segmentation(nn.Module):
 
         return classifier_out
     
-# if __name__ == '__main__':
-#     model = DINOv2Segmentation()
-#     from torchinfo import summary
-#     summary(
-#         model, 
-#         (1, 3, 644, 644),
-#         col_names=('input_size', 'output_size', 'num_params'),
-#         row_settings=['var_names']
-#     )
+if __name__ == '__main__':
+    model = DINOv2Segmentation()
+    from torchinfo import summary
+    summary(
+        model, 
+        (1, 3, 644, 644),
+        col_names=('input_size', 'output_size', 'num_params'),
+        row_settings=['var_names']
+    )
