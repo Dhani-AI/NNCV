@@ -102,6 +102,40 @@ class ASPPHead(nn.Module):
             mode='bilinear', 
             align_corners=False
         )
+    
+
+class FPNHead(nn.Module):
+    def __init__(self, in_channels, num_classes, hidden_dim=256):
+        super().__init__()
+        self.H = 46
+        self.W = 46
+        
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(in_channels, hidden_dim, 3, padding=1, bias=False),
+            nn.BatchNorm2d(hidden_dim),
+            nn.ReLU(inplace=True)
+        )
+        
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(hidden_dim, hidden_dim, 3, padding=1, bias=False),
+            nn.BatchNorm2d(hidden_dim),
+            nn.ReLU(inplace=True)
+        )
+        
+        self.final = nn.Conv2d(hidden_dim, num_classes, 1)
+
+    def forward(self, x):
+        x = x.reshape(-1, x.shape[1], self.H, self.W)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.final(x)
+        
+        return nn.functional.interpolate(
+            x, size=(self.H*14, self.W*14), 
+            mode='bilinear', 
+            align_corners=False
+        )
+    
 
 class LinearClassifierToken(torch.nn.Module):
     def __init__(self, in_channels, nc=1, tokenW=32, tokenH=32):
@@ -141,7 +175,8 @@ class DINOv2Segmentation(nn.Module):
                 param.requires_grad = False
 
         # self.decode_head = LinearClassifierToken(in_channels=1536, nc=num_classes, tokenW=46, tokenH=46)
-        self.decode_head = ASPPHead(in_channels=1536, num_classes=num_classes)
+        # self.decode_head = ASPPHead(in_channels=1536, num_classes=num_classes)
+        self.decode_head = FPNHead(in_channels=1536, num_classes=num_classes)
 
     def forward(self, x):
         features = self.backbone_model(x)
