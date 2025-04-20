@@ -1,4 +1,4 @@
-# Cityscapes Semantic Segmentation using Frozen DINOv2 Representations and Task-Specific Segmentation Head
+# Cityscapes Semantic Segmentation using Frozen/Finetuned DINOv2 vision transformer and Task-Specific Segmentation Head
 
 - **Author:** Dhani Crapels
 - **Codalab Username:** Dhani
